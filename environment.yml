@@ -1,0 +1,29 @@
+# 
+# To create the conda environment:
+# $ conda env create -f environment.yml
+# 
+# To update the conda environment:
+# $ conda env update -f environment.yml
+# 
+# To register the conda environment in Jupyter:
+# $ conda activate cv
+# $ python -m ipykernel install --user --name detector
+
+name: pfld
+channels:
+  - defaults
+  - conda-forge
+  - pytorch
+
+dependencies:
+  - python==3.7   
+  - pandas
+  - pip==20.0.2
+  - pytorch==1.2.0
+  - torchvision==0.4.0
+  - cudatoolkit=10.0 # This is not a mistake! Keep it one '='
+  - scikit-learn==0.22.1
+  - matplotlib
+  - pip:
+    - wandb
+    - scikit-plot

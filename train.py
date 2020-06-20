@@ -21,6 +21,17 @@ from dataset.datasets import WLFWDatasets
 from models.pfld import PFLDInference, AuxiliaryNet
 from pfld.loss import PFLDLoss
 from pfld.utils import AverageMeter
+import wandb
+import logging
+
+wandb.init(project="Pratical Facial Landmark Detection")
+wandb.config.backbone = "MobileNet-v2"
+wandb.config.width_model = 1
+
+CONSOLE_FORMAT = "%(name)s — %(levelname)s — %(funcName)s:%(lineno)d — %(message)s"
+logger = logging.getLogger(__name__)
+logging.basicConfig(format=CONSOLE_FORMAT, level=logging.INFO)
+
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -47,8 +58,10 @@ def str2bool(v):
 def train(train_loader, plfd_backbone, auxiliarynet, criterion, optimizer,
           epoch):
     losses = AverageMeter()
-
+    num_batch = len(train_loader)
+    i = 0
     for img, landmark_gt, attribute_gt, euler_angle_gt in train_loader:
+        i += 1
         img = img.to(device)
         attribute_gt = attribute_gt.to(device)
         landmark_gt = landmark_gt.to(device)
@@ -64,6 +77,10 @@ def train(train_loader, plfd_backbone, auxiliarynet, criterion, optimizer,
         optimizer.step()
 
         losses.update(loss.item())
+        wandb.log({"metric/loss":loss.item()})
+        wandb.log({"metric/weighted_loss": weighted_loss.detach().numpy()})
+        logger.info(f"Epoch:{epoch}. Batch {i} / {num_batch} batches. Loss: {loss.item()}. Weighted_loss:{ weighted_loss.detach().numpy()}")
+
     return weighted_loss, loss
 
 
@@ -83,7 +100,7 @@ def validate(wlfw_val_dataloader, plfd_backbone, auxiliarynet, criterion):
             loss = torch.mean(torch.sum((landmark_gt - landmark)**2, axis=1))
             losses.append(loss.cpu().numpy())
     print("===> Evaluate:")
-    print('Eval set: Average loss: {:.4f} '.format(np.mean(losses))
+    print('Eval set: Average loss: {:.4f} '.format(np.mean(losses)))
     return np.mean(losses)
 
 
@@ -196,7 +213,7 @@ def parse_args():
         default='./data/test_data/list.txt',
         type=str,
         metavar='PATH')
-    parser.add_argument('--train_batchsize', default=256, type=int)
+    parser.add_argument('--train_batchsize', default=2, type=int)
     parser.add_argument('--val_batchsize', default=8, type=int)
     args = parser.parse_args()
     return args
