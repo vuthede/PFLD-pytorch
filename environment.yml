@@ -27,3 +27,5 @@ dependencies:
   - pip:
     - wandb
     - scikit-plot
+    - opencv_python==4.1.0.25
+    - tensorboardX==1.8
