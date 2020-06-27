@@ -75,7 +75,9 @@ def validate(wlfw_val_dataloader, plfd_backbone):
             plfd_backbone = plfd_backbone.to(device)
 
             start_time = time.time()
+            t1 = time.time()
             _, landmarks = plfd_backbone(img)
+            print("Time: ", time.time()-t1)
             cost_time.append(time.time() - start_time)
 
             landmarks = landmarks.cpu().numpy()
