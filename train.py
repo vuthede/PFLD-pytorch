@@ -18,7 +18,7 @@ import torchvision.utils as vutils
 from tensorboardX import SummaryWriter
 
 from dataset.datasets import WLFWDatasets
-from models.pfld import PFLDInference, AuxiliaryNet
+from models.pfld import PFLDInference, AuxiliaryNet, CustomizedGhostNet
 from pfld.loss import PFLDLoss
 from pfld.utils import AverageMeter
 import wandb
@@ -27,6 +27,9 @@ import logging
 wandb.init(project="Pratical Facial Landmark Detection")
 wandb.config.backbone = "MobileNet-v2"
 wandb.config.width_model = 1
+wandb.config.pfld_backbone = "GhostNet" # Or MobileNet2
+wandb.config.ghostnet_width = 1
+
 
 CONSOLE_FORMAT = "%(name)s — %(levelname)s — %(funcName)s:%(lineno)d — %(message)s"
 logger = logging.getLogger(__name__)
@@ -117,7 +120,13 @@ def main(args):
     print_args(args)
 
     # Step 2: model, criterion, optimizer, scheduler
-    plfd_backbone = PFLDInference().to(device)
+    if wandb.config.pfld_backbone == "GhostNet":
+        plfd_backbone = CustomizedGhostNet(width=wandb.config.ghostnet_width, dropout=0.2)
+        logger.info(f"Using GHOSTNET with width={wandb.config.ghostnet_width} as backbone of PFLD backbone")
+    else:
+        plfd_backbone = PFLDInference().to(device) # MobileNet2 defaut
+        logger.info("Using MobileNet2 as backbone of PFLD backbone")
+
     auxiliarynet = AuxiliaryNet().to(device)
     criterion = PFLDLoss()
     optimizer = torch.optim.Adam(
@@ -215,7 +224,7 @@ def parse_args():
         default='./data/test_data/list.txt',
         type=str,
         metavar='PATH')
-    parser.add_argument('--train_batchsize', default=256, type=int)
+    parser.add_argument('--train_batchsize', default=2, type=int)
     parser.add_argument('--val_batchsize', default=8, type=int)
     args = parser.parse_args()
     return args
