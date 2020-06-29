@@ -18,17 +18,19 @@ import torchvision.utils as vutils
 from tensorboardX import SummaryWriter
 
 from dataset.datasets import WLFWDatasets
-from models.pfld import PFLDInference, AuxiliaryNet, CustomizedGhostNet
 from pfld.loss import PFLDLoss
 from pfld.utils import AverageMeter
 import wandb
 import logging
+from models.pfld import PFLDInference, AuxiliaryNet, CustomizedGhostNet
+
 
 wandb.init(project="Pratical Facial Landmark Detection")
 wandb.config.backbone = "MobileNet-v2"
 wandb.config.width_model = 1
 wandb.config.pfld_backbone = "GhostNet" # Or MobileNet2
 wandb.config.ghostnet_width = 1
+wandb.config.ghostnet_with_pretrained_weight_image_net = True
 
 
 CONSOLE_FORMAT = "%(name)s — %(levelname)s — %(funcName)s:%(lineno)d — %(message)s"
@@ -56,6 +58,53 @@ def str2bool(v):
         return False
     else:
         raise argparse.ArgumentTypeError('Boolean value expected')
+
+
+def load_pretrained_weight_imagenet_for_ghostnet_backbone(ourghostnetmodel, checkpoint_imagenet_path):
+    """
+    \brief Load weight from pretrained model ghostnet trained on image net
+            to our customized ghostnet model
+    \param ourghostnetmodel. Our ghostnet model
+    \param checkpoint_imagenet_path. The path to the checkpoint of ghostnet trained on image net
+    """
+   
+    def find_corresponding_layer(l):
+        """
+        /brief Function to find the corresponding prefix layer name in original ghostnet
+        """
+
+        map_dict  = {
+        "begining_blocks.0" : "blocks.0",
+        "begining_blocks.1" : "blocks.1",
+        "begining_blocks.2" : "blocks.2",
+        "begining_blocks.3" : "blocks.3",
+        "begining_blocks.4" : "blocks.4",
+        "begining_blocks.5" : "blocks.5",
+        "remaining_blocks.0" : "blocks.6",
+        "remaining_blocks.1" : "blocks.7",
+        "remaining_blocks.2" : "blocks.8",
+        "remaining_blocks.3" : "blocks.9",
+        }
+
+        for k,v in map_dict.items():
+            l = l.replace(k,v)
+
+        return l  
+
+    our_model_layer_keys = list(ourghostnetmodel.state_dict().keys())
+    ck = torch.load(checkpoint_imagenet_path)
+    pretrained_layer_keys = list(ck.keys())
+
+    for l in  our_model_layer_keys:
+        l1 = find_corresponding_layer(l)
+        if l1 in pretrained_layer_keys:
+            if ck[l1].data.shape == ourghostnetmodel.state_dict()[l].data.shape:
+                ourghostnetmodel.state_dict()[l].data.copy_(ck[l1])
+                logger.info(f"Load weight from {l1} from pretrained model to our model in layer {l}")
+            else:
+                logger.warning(f"Will not override due to mismatch shape. Detail: {l}. shape:{ourghostnetmodel.state_dict()[l].data.shape}. {l1}. Shape: {ck[l1].data.shape}")
+
+    return ourghostnetmodel
 
 
 def train(train_loader, plfd_backbone, auxiliarynet, criterion, optimizer,
@@ -123,6 +172,15 @@ def main(args):
     if wandb.config.pfld_backbone == "GhostNet":
         plfd_backbone = CustomizedGhostNet(width=wandb.config.ghostnet_width, dropout=0.2)
         logger.info(f"Using GHOSTNET with width={wandb.config.ghostnet_width} as backbone of PFLD backbone")
+
+        # If using pretrained weight from ghostnet model trained on image net
+        if (wandb.config.ghostnet_with_pretrained_weight_image_net == True):
+            logger.info(f"Using pretrained weights of ghostnet model trained on image net data ")
+            plfd_backbone = load_pretrained_weight_imagenet_for_ghostnet_backbone(
+                plfd_backbone, "./checkpoint_imagenet/state_dict_93.98.pth")
+            
+
+
     else:
         plfd_backbone = PFLDInference().to(device) # MobileNet2 defaut
         logger.info("Using MobileNet2 as backbone of PFLD backbone")

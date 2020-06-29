@@ -13,9 +13,9 @@ import torch.nn as nn
 import math
 import sys
 
-# sys.path.insert(0, "./models")
+sys.path.insert(0, "./models")
 
-from models.ghostnet import _make_divisible, GhostBottleneck, ConvBnAct
+from ghostnet import _make_divisible, GhostBottleneck, ConvBnAct
 
 
 def conv_bn(inp, oup, kernel, stride, padding=1):
@@ -156,7 +156,7 @@ class CustomizedGhostNet(nn.Module):
         [[5,  72,  40, 0.25, 1]],
         [[5, 120,  40, 0.25, 1]],
         # stage4
-        [[3, 240,  64, 0, 1]], #The original number of channels here is 80, but I change to 64 so that it fit to the AuxiliaryNet 
+        [[3, 240,  80, 0, 1]], #The original number of channels here is 80, but I change to 64 so that it fit to the AuxiliaryNet 
         [[3, 200,  80, 0, 2],
          [3, 184,  80, 0, 1],
          [3, 184,  80, 0, 1],
@@ -172,7 +172,7 @@ class CustomizedGhostNet(nn.Module):
         ],
 
         # final
-        [[5, 16, 16, 0.25, 1]]
+        # [[5, 16, 16, 0.25, 1]]
     ]
 
 
@@ -208,9 +208,9 @@ class CustomizedGhostNet(nn.Module):
                 remaining_stages.append(nn.Sequential(*layers))
                 
 
-        output_channel = _make_divisible(exp_size * width, 4)
+        # output_channel = _make_divisible(exp_size * width, 4)
+        output_channel = 16
         remaining_stages.append(nn.Sequential(ConvBnAct(input_channel, output_channel, 1)))
-        input_channel = output_channel
         
         self.begining_blocks = nn.Sequential(*first_6_stages)
         self.remaining_blocks = nn.Sequential(*remaining_stages)  # 16x14x14
@@ -254,7 +254,7 @@ class CustomizedGhostNet(nn.Module):
 class AuxiliaryNet(nn.Module):
     def __init__(self):
         super(AuxiliaryNet, self).__init__()
-        self.conv1 = conv_bn(64, 128, 3, 2)
+        self.conv1 = conv_bn(80, 128, 3, 2)  # Original of PFLd is 64 but I used 80 here to match with ghostnet model
         self.conv2 = conv_bn(128, 128, 3, 1)
         self.conv3 = conv_bn(128, 32, 3, 2)
         self.conv4 = conv_bn(32, 128, 7, 1)
