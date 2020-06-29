@@ -282,7 +282,7 @@ def parse_args():
         default='./data/test_data/list.txt',
         type=str,
         metavar='PATH')
-    parser.add_argument('--train_batchsize', default=2, type=int)
+    parser.add_argument('--train_batchsize', default=256, type=int)
     parser.add_argument('--val_batchsize', default=8, type=int)
     args = parser.parse_args()
     return args
