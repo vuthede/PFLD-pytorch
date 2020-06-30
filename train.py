@@ -26,7 +26,7 @@ from models.pfld import PFLDInference, AuxiliaryNet, CustomizedGhostNet
 
 
 wandb.init(project="Pratical Facial Landmark Detection")
-wandb.config.backbone = "MobileNet-v2"
+# wandb.config.backbone = "MobileNet-v2"
 wandb.config.width_model = 1
 wandb.config.pfld_backbone = "GhostNet" # Or MobileNet2
 wandb.config.ghostnet_width = 1
@@ -186,6 +186,11 @@ def main(args):
         logger.info("Using MobileNet2 as backbone of PFLD backbone")
 
     auxiliarynet = AuxiliaryNet().to(device)
+
+    # Watch model by wandb
+    wandb.watch(plfd_backbone)
+    wandb.watch(auxiliarynet)
+
     criterion = PFLDLoss()
     optimizer = torch.optim.Adam(
         [{
