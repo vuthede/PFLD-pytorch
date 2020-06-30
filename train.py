@@ -31,6 +31,8 @@ wandb.config.width_model = 1
 wandb.config.pfld_backbone = "GhostNet" # Or MobileNet2
 wandb.config.ghostnet_width = 1
 wandb.config.ghostnet_with_pretrained_weight_image_net = True
+wandb.config.using_wingloss = True
+
 
 
 CONSOLE_FORMAT = "%(name)s — %(levelname)s — %(funcName)s:%(lineno)d — %(message)s"
@@ -122,8 +124,9 @@ def train(train_loader, plfd_backbone, auxiliarynet, criterion, optimizer,
         auxiliarynet = auxiliarynet.to(device)
         features, landmarks = plfd_backbone(img)
         angle = auxiliarynet(features)
+        using_wingloss = wandb.config.using_wingloss
         weighted_loss, loss = criterion(attribute_gt, landmark_gt, euler_angle_gt,
-                                    angle, landmarks, args.train_batchsize)
+                                    angle, landmarks, args.train_batchsize, using_wingloss=using_wingloss)
         optimizer.zero_grad()
         weighted_loss.backward()
         optimizer.step()

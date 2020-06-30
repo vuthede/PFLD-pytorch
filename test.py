@@ -74,7 +74,6 @@ def validate(wlfw_val_dataloader, plfd_backbone):
         for img, landmark_gt, _, _ in wlfw_val_dataloader:
             i +=1
             if i==200:
-                break
             img = img.to(device)
             landmark_gt = landmark_gt.to(device)
             plfd_backbone = plfd_backbone.to(device)

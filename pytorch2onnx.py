@@ -4,7 +4,7 @@
 
 import os
 import argparse
-from models.pfld import PFLDInference
+from models.pfld import PFLDInference, CustomizedGhostNet
 from torch.autograd import Variable
 import torch
 import onnxsim
@@ -18,6 +18,7 @@ args = parser.parse_args()
 print("=====> load pytorch checkpoint...")
 checkpoint = torch.load(args.torch_model, map_location=torch.device('cpu'))
 plfd_backbone = PFLDInference()
+# plfd_backbone = CustomizedGhostNet(width=1, dropout=0.2)
 plfd_backbone.load_state_dict(checkpoint['plfd_backbone'])
 print("PFLD bachbone:", plfd_backbone)
 
@@ -35,6 +36,6 @@ onnx.checker.check_model(model)
 
 print("====> Simplifying...")
 model_opt = onnxsim.simplify(args.onnx_model)
-# print("model_opt", model_opt)
+print("model_opt", model_opt)
 onnx.save(model_opt, args.onnx_model_sim)
 print("onnx model simplify Ok!")
