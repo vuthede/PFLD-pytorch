@@ -17,7 +17,8 @@ from torch.utils.data import DataLoader
 import torch.backends.cudnn as cudnn
 from dataset.datasets import WLFWDatasets
 
-from models.pfld import PFLDInference
+from models.pfld import PFLDInference, AuxiliaryNet, CustomizedGhostNet
+
 
 cudnn.benchmark = True
 cudnn.determinstic = True
@@ -68,8 +69,12 @@ def validate(wlfw_val_dataloader, plfd_backbone):
 
     nme_list = []
     cost_time = []
+    i = 0
     with torch.no_grad():
         for img, landmark_gt, _, _ in wlfw_val_dataloader:
+            i +=1
+            if i==200:
+                break
             img = img.to(device)
             landmark_gt = landmark_gt.to(device)
             plfd_backbone = plfd_backbone.to(device)
@@ -115,7 +120,8 @@ def validate(wlfw_val_dataloader, plfd_backbone):
 
 def main(args):
     checkpoint = torch.load(args.model_path, map_location=device)
-    plfd_backbone = PFLDInference().to(device)
+    # plfd_backbone = PFLDInference().to(device)
+    plfd_backbone = CustomizedGhostNet(width=1, dropout=0.2).to(device)
     plfd_backbone.load_state_dict(checkpoint['plfd_backbone'])
 
     transform = transforms.Compose([transforms.ToTensor()])
