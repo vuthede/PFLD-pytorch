@@ -14,6 +14,9 @@ import dlib
 from imutils import face_utils
 
 class LandmarkDetectorAbstract(ABC):
+    def __init__(self):
+        pass
+    
     @abstractmethod
     def get_68_landmarks(image):
         """

@@ -19,7 +19,6 @@ from dataset.datasets import WLFWDatasets
 
 from models.pfld import PFLDInference, AuxiliaryNet, CustomizedGhostNet
 
-
 cudnn.benchmark = True
 cudnn.determinstic = True
 cudnn.enabled = True
@@ -73,9 +72,12 @@ def validate(wlfw_val_dataloader, plfd_backbone):
     with torch.no_grad():
         for img, landmark_gt, _, _ in wlfw_val_dataloader:
             i +=1
-            if i==200:
+            # if i==200:
+            #     break
+
             img = img.to(device)
             landmark_gt = landmark_gt.to(device)
+            print("Shape image:", img.shape)
             plfd_backbone = plfd_backbone.to(device)
 
             start_time = time.time()
@@ -101,7 +103,7 @@ def validate(wlfw_val_dataloader, plfd_backbone):
                 for (x, y) in pre_landmark.astype(np.int32):
                     cv2.circle(img_clone, (x, y), 1, (255,0,0),-1)
                 cv2.imshow("xx.jpg", img_clone)
-                cv2.waitKey(0)
+                cv2.waitKey(1)
 
             nme_temp = compute_nme(landmarks, landmark_gt)
             for item in nme_temp:
