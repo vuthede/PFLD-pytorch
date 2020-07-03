@@ -18,10 +18,13 @@ import torch.backends.cudnn as cudnn
 from dataset.datasets import WLFWDatasets
 
 from models.pfld import PFLDInference, AuxiliaryNet, CustomizedGhostNet
-# from mtcnn.detector import MTCNN
+from mtcnn.detector import MTCNN
+# from mtcnn import MTCNN
 from loss.LSE_loss import LandmarkDetectorAbstract, calculateLSEInOneVideo
 import dlib
 from imutils import face_utils
+
+
 cudnn.benchmark = True
 cudnn.determinstic = True
 cudnn.enabled = True
@@ -97,55 +100,63 @@ LMK98_2_68_MAP = {0: 0,
  95: 67}
 
 
-out = cv2.VideoWriter('/home/vuthede/Desktop/dlib_landmark.avi',cv2.VideoWriter_fourcc('M','J','P','G'), 10, (600,400))
+# out = cv2.VideoWriter('/home/vuthede/Desktop/Pha_video_laandmark_dlib.avi',cv2.VideoWriter_fourcc('M','J','P','G'), 10, (600,400))
 
 
 class  LandmarkDetectorPFLD(LandmarkDetectorAbstract):
     def __init__(self, device, model_path):
         self.mtcnn = MTCNN()
         self.transform = transforms.Compose([transforms.ToTensor()])
-        self.plfd_backbone = CustomizedGhostNet(width=1, dropout=0.2).to(device)
-        # self.plfd_backbone = PFLDInference()
+        # self.plfd_backbone = CustomizedGhostNet(width=1, dropout=0.2).to(device)
+        self.plfd_backbone = PFLDInference()
         checkpoint = torch.load(model_path, map_location=device)
         self.plfd_backbone.load_state_dict(checkpoint['plfd_backbone'])
         self.plfd_backbone.eval()
 
     def get_68_landmarks(self, image):
         with torch.no_grad():
-            box = self.mtcnn.detect_single_face(image) # x1, y1, x2, y2
-            padding=60
-            x,y,x1,y1 = map(int, box)
-            x = max(0, x-padding)
-            y = max(0, y-padding)
-            x1 = min(image.shape[1], x1+padding)
-            y1 = min(image.shape[0], y1+padding)
-            face = image[y:y1, x:x1]
-            face = cv2.resize(face, (112, 112))
-            face = self.transform(face)
-            face = torch.unsqueeze(face, 0)
-            _, landmarks = self.plfd_backbone(face)   
-            landmarks = landmarks.cpu().numpy()
-            landmarks = landmarks.reshape(landmarks.shape[0], -1, 2) # landmark 
-            landmarks = np.squeeze(landmarks, 0)
-            indice68lmk = np.array(list(LMK98_2_68_MAP.keys()))
-            landmarks = landmarks[indice68lmk] * np.array([112,112])
-            landmarks[:,0] = landmarks[:,0] * ((x1-x)/112) + x
-            landmarks[:,1] = landmarks[:,1] * ((y1-y)/112) + y
+            box = self.mtcnn.detect_single_face(image) # x1, y1, x2, y2 Here is mtcnn in this repo
+            # fd = MTCNN(device=torch.device('cpu'))
+            # bb, score = fd.detect(image)
+            # box = list(map(int, bb[0]))
 
-            landmarks = landmarks.astype(int)
+            landmarks = []
+            if len(box):
+                padding=20
+                x,y,x1,y1 = map(int, box)
+                x = max(0, x-padding)
+                y = max(0, y-padding)
+                x1 = min(image.shape[1], x1+padding)
+                y1 = min(image.shape[0], y1+padding)
+                face = image[y:y1, x:x1]
+                face = cv2.resize(face, (112, 112))
+                face = self.transform(face)
+                face = torch.unsqueeze(face, 0)
+                _, landmarks = self.plfd_backbone(face)   
+                landmarks = landmarks.cpu().numpy()
+                landmarks = landmarks.reshape(landmarks.shape[0], -1, 2) # landmark 
+                landmarks = np.squeeze(landmarks, 0)
+                indice68lmk = np.array(list(LMK98_2_68_MAP.keys()))
+                landmarks = landmarks[indice68lmk] * np.array([112,112])
+                landmarks[:,0] = landmarks[:,0] * ((x1-x)/112) + x
+                landmarks[:,1] = landmarks[:,1] * ((y1-y)/112) + y
 
-            image = cv2.rectangle(image, (x,y), (x1,y1), (0,255,0),2)
-            for l in landmarks:
-                cv2.circle(image, (l[0], l[1]), 1, (255,0,0), 10)
+                landmarks = landmarks.astype(int)
+
+                image = cv2.rectangle(image, (x,y), (x1,y1), (0,255,0),2)
+                for l in landmarks:
+                    cv2.circle(image, (l[0], l[1]), 1, (255,0,0), 3)
                 
-            image=cv2.resize(image, (600,400))
-            out.write(image)
+                assert len(landmarks)==68, f"There should be 68 landmark. Found {len(landmarks)}"
+                
+            # image=cv2.resize(image, (600,400))
+            # out.write(image)
             
             cv2.imshow("Landmark predict: ", image)
 
-            k = cv2.waitKey(1)
+            k = cv2.waitKey(0)
 
-            assert len(landmarks)==68, f"There should be 68 landmark. Found {len(landmarks)}"
+            
 
             return landmarks
 
@@ -176,10 +187,10 @@ class PFLDLandmarkDetector(LandmarkDetectorAbstract):
 
         # image = cv2.rectangle(image, (x,y), (x1,y1), (0,255,0),2)
         for l in landmarks:
-            cv2.circle(image, (l[0], l[1]), 1, (255,0,0), 10)
+            cv2.circle(image, (l[0], l[1]), 2, (255,0,0), 3)
             
-        image=cv2.resize(image, (600,400))
-        out.write(image)
+        # image=cv2.resize(image, (600,400))
+        # out.write(image)
         
         cv2.imshow("Landmark predict: ", image)
 
@@ -192,24 +203,29 @@ class PFLDLandmarkDetector(LandmarkDetectorAbstract):
 
 
 
-def main(args):
-    # lmdetector = LandmarkDetectorPFLD(device="cpu", model_path=args.model_path)
-    lmdetector =  PFLDLandmarkDetector()
-    
-    mlse = calculateLSEInOneVideo(lmdetector, args.video, args.annot)
+def main():
+    model_path = "/home/vuthede/checkpoints_landmark/mobilenetv2/checkpoint_epoch_969.pth.tar"
+    video = "/home/vuthede/Downloads/VID_20200630_221121_970.mp4"
+    # lmdetector = LandmarkDetectorPFLD(device="cpu", model_path=model_path)
+    lmdetector = PFLDLandmarkDetector()
+    cap = cv2.VideoCapture(video)
 
-    print("Average mlse: ", mlse)
-    out.release()
+    while True:
+        ret, img = cap.read()
+        img = cv2.rotate(img, cv2.ROTATE_90_COUNTERCLOCKWISE)
+        img = cv2.resize(img, None, fx=0.4, fy=0.4)
+        if not ret:
+            break
 
-def parse_args():
-    parser = argparse.ArgumentParser(description='Testing')
-    parser.add_argument('--model_path', default="./checkpoint/snapshot/checkpoint.pth.tar", type=str)
-    parser.add_argument('--video', required=True, type=str)
-    parser.add_argument('--annot', required=True, type=str)
-    parser.add_argument('--show_image', default=False, type=bool)
-    args = parser.parse_args()
-    return args
+        # cv2.imshow("Image", img)
+        k = cv2.waitKey(1)
 
-if __name__ == "__main__":
-    args = parse_args()
-    main(args)
+
+        lmdetector.get_68_landmarks(img)
+
+    # out.release()
+
+if __name__=="__main__":
+    main()
+
+

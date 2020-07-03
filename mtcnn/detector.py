@@ -282,10 +282,13 @@ class MTCNN():
                             thresholds=[0.6, 0.7, 0.8],
                             nms_thresholds=[0.7, 0.7, 0.7]):
         
-        bboxs, _ = self.detect_faces(image)
-        box = bboxs[0][:4]
-        box = np.array([int(i) for i in box])
-        return box # x,y,x1,y1
+        bboxs, _ = self.detect_faces(image, min_face_size, thresholds, nms_thresholds)
+        if len(bboxs):
+            box = bboxs[0][:4]
+            box = np.array([int(i) for i in box])
+            return box # x,y,x1,y1
+        else:
+            return np.array([])
 
     def detect_faces(self, image,  min_face_size=20.0,
                             thresholds=[0.6, 0.7, 0.8],
