@@ -31,7 +31,7 @@ wandb.config.width_model = 1
 wandb.config.pfld_backbone = "GhostNet2" # Or MobileNet2
 wandb.config.ghostnet_width = 1
 wandb.config.ghostnet_with_pretrained_weight_image_net = False
-wandb.config.using_wingloss = True
+wandb.config.using_wingloss = False
 
 
 
@@ -124,7 +124,12 @@ def train(train_loader, plfd_backbone, auxiliarynet, criterion, optimizer,
         auxiliarynet = auxiliarynet.to(device)
         features, landmarks = plfd_backbone(img)
         angle = auxiliarynet(features)
+	
         using_wingloss = wandb.config.using_wingloss
+        
+        if epoch<25:
+                using_wingloss=False
+	
         weighted_loss, loss = criterion(attribute_gt, landmark_gt, euler_angle_gt,
                                     angle, landmarks, args.train_batchsize, using_wingloss=using_wingloss)
         optimizer.zero_grad()
@@ -133,8 +138,8 @@ def train(train_loader, plfd_backbone, auxiliarynet, criterion, optimizer,
          
         losses.update(loss.item())
         wandb.log({"metric/loss":loss.item()})
-        wandb.log({"metric/weighted_loss": weighted_loss.detach().numpy()})
-        logger.info(f"Epoch:{epoch}. Lr:{optimizer.param_groups[0]['lr']}. Batch {i} / {num_batch} batches. Loss: {loss.item()}. Weighted_loss:{ weighted_loss.detach().numpy()}")
+        wandb.log({"metric/weighted_loss": weighted_loss.detach().cpu().numpy()})
+        logger.info(f"Epoch:{epoch}. Lr:{optimizer.param_groups[0]['lr']}. Batch {i} / {num_batch} batches. Loss: {loss.item()}. Weighted_loss:{ weighted_loss.detach().cpu().numpy()}")
 
     return weighted_loss, loss
 
@@ -294,7 +299,7 @@ def parse_args():
         default='./data/test_data/list.txt',
         type=str,
         metavar='PATH')
-    parser.add_argument('--train_batchsize', default=256, type=int)
+    parser.add_argument('--train_batchsize', default=128, type=int)
     parser.add_argument('--val_batchsize', default=8, type=int)
     args = parser.parse_args()
     return args
