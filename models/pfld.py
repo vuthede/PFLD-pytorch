@@ -16,6 +16,7 @@ import sys
 sys.path.insert(0, "./models")
 
 from ghostnet import _make_divisible, GhostBottleneck, ConvBnAct
+from mobilefacenet import ConvBlock, Bottleneck
 
 
 def conv_bn(inp, oup, kernel, stride, padding=1):
@@ -364,10 +365,75 @@ class CustomizedGhostNet2(nn.Module):
     
         return features_for_auxiliarynet, landmarks
 
+
+class MobileFacenet(nn.Module):
+    bottleneck_setting = [
+        # t, c , n ,s
+        [2, 64, 5, 2],
+        [4, 128, 1, 2],
+        [2, 128, 6, 1],
+        [4, 128, 1, 2],
+        [2, 128, 2, 1]
+    ]
+
+    def __init__(self):
+        super(MobileFacenet, self).__init__()
+
+        self.conv1 = ConvBlock(3, 64, 3, 2, 1)
+
+        self.dw_conv1 = ConvBlock(64, 64, 3, 1, 1, dw=True)
+
+        self.inplanes = 64
+        block = Bottleneck
+        self.block_first = self._make_layer(block, [self.bottleneck_setting[0]])
+        self.blocks_remain = self._make_layer(block, self.bottleneck_setting[1:])
+
+
+        self.conv2 = ConvBlock(128, 512, 1, 1, 0)
+
+        self.linear7 = ConvBlock(512, 512, (7, 6), 1, 0, dw=True, linear=True)
+
+        self.linear1 = ConvBlock(512, 128, 1, 1, 0, linear=True)
+
+        self.fc = nn.Linear(256, 196)
+
+        for m in self.modules():
+            if isinstance(m, nn.Conv2d):
+                n = m.kernel_size[0] * m.kernel_size[1] * m.out_channels
+                m.weight.data.normal_(0, math.sqrt(2. / n))
+            elif isinstance(m, nn.BatchNorm2d):
+                m.weight.data.fill_(1)
+                m.bias.data.zero_()
+
+    def _make_layer(self, block, setting):
+        layers = []
+        for t, c, n, s in setting:
+            for i in range(n):
+                if i == 0:
+                    layers.append(block(self.inplanes, c, s, t))
+                else:
+                    layers.append(block(self.inplanes, c, 1, t))
+                self.inplanes = c
+
+        return nn.Sequential(*layers)
+
+    def forward(self, x):
+        x = self.conv1(x)
+        x = self.dw_conv1(x)
+        share_features = self.block_first(x)
+        x = self.blocks_remain(share_features)
+        x = self.conv2(x)
+        x = self.linear7(x)
+        x = self.linear1(x)
+        x = x.view(x.size(0), -1)
+        x = self.fc(x)
+
+        return share_features, x
+
 class AuxiliaryNet(nn.Module):
     def __init__(self):
         super(AuxiliaryNet, self).__init__()
-        self.conv1 = conv_bn(40, 128, 3, 2)  # Original of PFLd is 64 but I used 80  or 40 here to match with ghostnet/ghostnet2 model
+        self.conv1 = conv_bn(64, 128, 3, 2)  # Original of PFLd is 64 but I used 80  or 40 here to match with ghostnet/ghostnet2 model
         self.conv2 = conv_bn(128, 128, 3, 1)
         self.conv3 = conv_bn(128, 32, 3, 2)
         self.conv4 = conv_bn(32, 128, 7, 1)

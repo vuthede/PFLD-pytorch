@@ -22,16 +22,16 @@ from pfld.loss import PFLDLoss
 from pfld.utils import AverageMeter
 import wandb
 import logging
-from models.pfld import PFLDInference, AuxiliaryNet, CustomizedGhostNet, CustomizedGhostNet2
+from models.pfld import PFLDInference, AuxiliaryNet, CustomizedGhostNet, MobileFacenet
 
 
 wandb.init(project="Pratical Facial Landmark Detection")
 # wandb.config.backbone = "MobileNet-v2"
-wandb.config.width_model = 1
-wandb.config.pfld_backbone = "GhostNet2" # Or MobileNet2
-wandb.config.ghostnet_width = 1
-wandb.config.ghostnet_with_pretrained_weight_image_net = False
-wandb.config.using_wingloss = True
+# wandb.config.width_model = 1
+wandb.config.pfld_backbone = "MobileFaceNet" # Or MobileNet2
+# wandb.config.ghostnet_width = 1
+# wandb.config.ghostnet_with_pretrained_weight_image_net = True
+wandb.config.using_wingloss = False
 
 
 
@@ -125,16 +125,18 @@ def train(train_loader, plfd_backbone, auxiliarynet, criterion, optimizer,
         features, landmarks = plfd_backbone(img)
         angle = auxiliarynet(features)
         using_wingloss = wandb.config.using_wingloss
+        if epoch<25:
+            using_wingloss=False
         weighted_loss, loss = criterion(attribute_gt, landmark_gt, euler_angle_gt,
                                     angle, landmarks, args.train_batchsize, using_wingloss=using_wingloss)
         optimizer.zero_grad()
         weighted_loss.backward()
         optimizer.step()
-         
+
         losses.update(loss.item())
         wandb.log({"metric/loss":loss.item()})
-        wandb.log({"metric/weighted_loss": weighted_loss.detach().numpy()})
-        logger.info(f"Epoch:{epoch}. Lr:{optimizer.param_groups[0]['lr']}. Batch {i} / {num_batch} batches. Loss: {loss.item()}. Weighted_loss:{ weighted_loss.detach().numpy()}")
+        wandb.log({"metric/weighted_loss": weighted_loss.detach().cpu().numpy()})
+        logger.info(f"Epoch:{epoch}. Lr:{optimizer.param_groups[0]['lr']} Batch {i} / {num_batch} batches. Loss: {loss.item()}. Weighted_loss:{ weighted_loss.detach().cpu().numpy()}")
 
     return weighted_loss, loss
 
@@ -182,9 +184,9 @@ def main(args):
             plfd_backbone = load_pretrained_weight_imagenet_for_ghostnet_backbone(
                 plfd_backbone, "./checkpoint_imagenet/state_dict_93.98.pth")
             
-    elif wandb.config.pfld_backbone == "GhostNet2":
-        plfd_backbone = CustomizedGhostNet2(width=wandb.config.ghostnet_width, dropout=0.2)
-        logger.info(f"Using GHOSTNET2 with width={wandb.config.ghostnet_width} as backbone of PFLD backbone")
+    elif wandb.config.pfld_backbone == "MobileFaceNet":
+        plfd_backbone = MobileFacenet()
+        logger.info(f"Using MobileFacenetas backbone of PFLD backbone")
 
     else:
         plfd_backbone = PFLDInference().to(device) # MobileNet2 defaut
@@ -228,8 +230,6 @@ def main(args):
     # step 4: run
     writer = SummaryWriter(args.tensorboard)
     for epoch in range(args.start_epoch, args.end_epoch + 1):
-        wandb.log({'metric/learing_rate': optimizer.param_groups[0]['lr']})
-
         weighted_train_loss, train_loss = train(dataloader, plfd_backbone, auxiliarynet,
                                       criterion, optimizer, epoch)
         filename = os.path.join(
@@ -294,7 +294,7 @@ def parse_args():
         default='./data/test_data/list.txt',
         type=str,
         metavar='PATH')
-    parser.add_argument('--train_batchsize', default=256, type=int)
+    parser.add_argument('--train_batchsize', default=2, type=int)
     parser.add_argument('--val_batchsize', default=8, type=int)
     args = parser.parse_args()
     return args
