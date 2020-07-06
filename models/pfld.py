@@ -68,35 +68,39 @@ class InvertedResidual(nn.Module):
 
 
 class PFLDInference(nn.Module):
-    def __init__(self):
+    def __init__(self, alpha=1.0):
         super(PFLDInference, self).__init__()
 
+        self.inplane = 64 #1x
+        self.alpha  = alpha
+        self.base_channel = int(self.inplane*self.alpha)
+
         self.conv1 = nn.Conv2d(
-            3, 64, kernel_size=3, stride=2, padding=1, bias=False)
-        self.bn1 = nn.BatchNorm2d(64)
+            3,  self.base_channel, kernel_size=3, stride=2, padding=1, bias=False)
+        self.bn1 = nn.BatchNorm2d(self.base_channel)
         self.relu = nn.ReLU(inplace=True)
 
         self.conv2 = nn.Conv2d(
-            64, 64, kernel_size=3, stride=1, padding=1, bias=False)
-        self.bn2 = nn.BatchNorm2d(64)
+             self.base_channel,  self.base_channel, kernel_size=3, stride=1, padding=1, bias=False)
+        self.bn2 = nn.BatchNorm2d( self.base_channel)
         self.relu = nn.ReLU(inplace=True)
 
-        self.conv3_1 = InvertedResidual(64, 64, 2, False, 2)
+        self.conv3_1 = InvertedResidual( self.base_channel,  self.base_channel, 2, False, 2)
 
-        self.block3_2 = InvertedResidual(64, 64, 1, True, 2)
-        self.block3_3 = InvertedResidual(64, 64, 1, True, 2)
-        self.block3_4 = InvertedResidual(64, 64, 1, True, 2)
-        self.block3_5 = InvertedResidual(64, 64, 1, True, 2)
+        self.block3_2 = InvertedResidual( self.base_channel,  self.base_channel, 1, True, 2)
+        self.block3_3 = InvertedResidual( self.base_channel,  self.base_channel, 1, True, 2)
+        self.block3_4 = InvertedResidual( self.base_channel,  self.base_channel, 1, True, 2)
+        self.block3_5 = InvertedResidual( self.base_channel,  self.base_channel, 1, True, 2)
 
-        self.conv4_1 = InvertedResidual(64, 128, 2, False, 2)
+        self.conv4_1 = InvertedResidual(self.base_channel, self.base_channel*2, 2, False, 2)
 
-        self.conv5_1 = InvertedResidual(128, 128, 1, False, 4)
-        self.block5_2 = InvertedResidual(128, 128, 1, True, 4)
-        self.block5_3 = InvertedResidual(128, 128, 1, True, 4)
-        self.block5_4 = InvertedResidual(128, 128, 1, True, 4)
-        self.block5_5 = InvertedResidual(128, 128, 1, True, 4)
-        self.block5_6 = InvertedResidual(128, 128, 1, True, 4)
-        self.conv6_1 = InvertedResidual(128, 16, 1, False, 2)  # [16, 14, 14]
+        self.conv5_1 = InvertedResidual(self.base_channel*2, self.base_channel*2, 1, False, 4)
+        self.block5_2 = InvertedResidual(self.base_channel*2, self.base_channel*2, 1, True, 4)
+        self.block5_3 = InvertedResidual(self.base_channel*2, self.base_channel*2, 1, True, 4)
+        self.block5_4 = InvertedResidual(self.base_channel*2, self.base_channel*2, 1, True, 4)
+        self.block5_5 = InvertedResidual(self.base_channel*2, self.base_channel*2, 1, True, 4)
+        self.block5_6 = InvertedResidual(self.base_channel*2, self.base_channel*2, 1, True, 4)
+        self.conv6_1 = InvertedResidual(self.base_channel*2, 16, 1, False, 2)  # [16, 14, 14]
 
         self.conv7 = conv_bn(16, 32, 3, 2)  # [32, 7, 7]
         self.conv8 = nn.Conv2d(32, 128, 7, 1, 0)  # [128, 1, 1]
@@ -432,9 +436,10 @@ class MobileFacenet(nn.Module):
         return share_features, x
 
 class AuxiliaryNet(nn.Module):
-    def __init__(self):
+    def __init__(self, alpha):
         super(AuxiliaryNet, self).__init__()
-        self.conv1 = conv_bn(64, 128, 3, 2)  # Original of PFLd is 64 but I used 80  or 40 here to match with ghostnet/ghostnet2 model
+        self.base_channel = int(64*alpha)
+        self.conv1 = conv_bn(self.base_channel, 128, 3, 2)  # Original of PFLd is 64 but I used 80  or 40 here to match with ghostnet/ghostnet2 model
         self.conv2 = conv_bn(128, 128, 3, 1)
         self.conv3 = conv_bn(128, 32, 3, 2)
         self.conv4 = conv_bn(32, 128, 7, 1)

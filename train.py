@@ -27,11 +27,11 @@ from models.pfld import PFLDInference, AuxiliaryNet, CustomizedGhostNet, MobileF
 
 wandb.init(project="Pratical Facial Landmark Detection")
 # wandb.config.backbone = "MobileNet-v2"
-# wandb.config.width_model = 1
-wandb.config.pfld_backbone = "MobileFaceNet" # Or MobileNet2
+wandb.config.width_model = 0.25
+wandb.config.pfld_backbone = "MobileNet2" # Or MobileNet2
 # wandb.config.ghostnet_width = 1
 # wandb.config.ghostnet_with_pretrained_weight_image_net = True
-wandb.config.using_wingloss = True
+wandb.config.using_wingloss = False
 
 
 
@@ -125,7 +125,7 @@ def train(train_loader, plfd_backbone, auxiliarynet, criterion, optimizer,
         features, landmarks = plfd_backbone(img)
         angle = auxiliarynet(features)
         using_wingloss = wandb.config.using_wingloss
-        if epoch<151:
+        if epoch<25:
             using_wingloss=False
         weighted_loss, loss = criterion(attribute_gt, landmark_gt, euler_angle_gt,
                                     angle, landmarks, args.train_batchsize, using_wingloss=using_wingloss)
@@ -189,10 +189,10 @@ def main(args):
         logger.info(f"Using MobileFacenetas backbone of PFLD backbone")
 
     else:
-        plfd_backbone = PFLDInference().to(device) # MobileNet2 defaut
-        logger.info("Using MobileNet2 as backbone of PFLD backbone")
+        plfd_backbone = PFLDInference(alpha=wandb.config.width_model).to(device) # MobileNet2 defaut
+        logger.info(f"Using MobileNet2 as backbone of PFLD backbone with width = {wandb.config.width_model}")
 
-    auxiliarynet = AuxiliaryNet().to(device)
+    auxiliarynet = AuxiliaryNet(alpha=wandb.config.width_model).to(device)
 
     # Load checkpoints
     if args.resume != '':
