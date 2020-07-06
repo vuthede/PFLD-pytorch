@@ -31,7 +31,7 @@ wandb.init(project="Pratical Facial Landmark Detection")
 wandb.config.pfld_backbone = "MobileFaceNet" # Or MobileNet2
 # wandb.config.ghostnet_width = 1
 # wandb.config.ghostnet_with_pretrained_weight_image_net = True
-wandb.config.using_wingloss = False
+wandb.config.using_wingloss = True
 
 
 
@@ -125,7 +125,7 @@ def train(train_loader, plfd_backbone, auxiliarynet, criterion, optimizer,
         features, landmarks = plfd_backbone(img)
         angle = auxiliarynet(features)
         using_wingloss = wandb.config.using_wingloss
-        if epoch<25:
+        if epoch<151:
             using_wingloss=False
         weighted_loss, loss = criterion(attribute_gt, landmark_gt, euler_angle_gt,
                                     angle, landmarks, args.train_batchsize, using_wingloss=using_wingloss)
@@ -194,6 +194,15 @@ def main(args):
 
     auxiliarynet = AuxiliaryNet().to(device)
 
+    # Load checkpoints
+    if args.resume != '':
+        checkpoint = torch.load(args.resume)
+        plfd_backbone.load_state_dict(checkpoint['plfd_backbone'])
+        auxiliarynet.load_state_dict(checkpoint['auxiliarynet'])
+        logger.info(f"Load weights {args.resume} into plfd and auxiliary")
+
+
+
     # Watch model by wandb
     wandb.watch(plfd_backbone)
     wandb.watch(auxiliarynet)
@@ -261,7 +270,7 @@ def parse_args():
 
     # training
     ##  -- optimizer
-    parser.add_argument('--base_lr', default=0.0001, type=int)
+    parser.add_argument('--base_lr', default=0.0001, type=float)
     parser.add_argument('--weight-decay', '--wd', default=1e-6, type=float)
 
     # -- lr
