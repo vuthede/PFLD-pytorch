@@ -100,7 +100,7 @@ LMK98_2_68_MAP = {0: 0,
  95: 67}
 
 
-# out = cv2.VideoWriter('/home/vuthede/Desktop/Pha_video_laandmark_dlib.avi',cv2.VideoWriter_fourcc('M','J','P','G'), 10, (600,400))
+out = cv2.VideoWriter('/home/vuthede/Desktop/Pha_video_best_mobilenet_with_no_track.avi',cv2.VideoWriter_fourcc('M','J','P','G'), 10, (432,768))
 
 
 class  LandmarkDetectorPFLD(LandmarkDetectorAbstract):
@@ -112,13 +112,30 @@ class  LandmarkDetectorPFLD(LandmarkDetectorAbstract):
         checkpoint = torch.load(model_path, map_location=device)
         self.plfd_backbone.load_state_dict(checkpoint['plfd_backbone'])
         self.plfd_backbone.eval()
+        self.first=True
+        self.tracker = cv2.TrackerKCF_create()
+
 
     def get_68_landmarks(self, image):
         with torch.no_grad():
+            # if self.first:
+            #     box = self.mtcnn.detect_single_face(image) # x1, y1, x2, y2 Here is mtcnn in this repo
+            #     self.tracker.init(image, (box[0]-20, box[1]-20, box[2] - box[0]+20, box[3] - box[1]+20))
+            #     self.first = False
+            # else:
+            #     ok, box = self.tracker.update(image)
+            #     box = list(box)
+            #     box[2] += box[0]
+            #     box[3] += box[1]
             box = self.mtcnn.detect_single_face(image) # x1, y1, x2, y2 Here is mtcnn in this repo
-            # fd = MTCNN(device=torch.device('cpu'))
-            # bb, score = fd.detect(image)
-            # box = list(map(int, bb[0]))
+            if len(box):
+                self.tracker = cv2.TrackerKCF_create()
+                self.tracker.init(image, (box[0], box[1], box[2] - box[0], box[3] - box[1]))
+            else:
+                ok, box = self.tracker.update(image)
+                box = list(box)
+                box[2] += box[0]
+                box[3] += box[1]
 
             landmarks = []
             if len(box):
@@ -151,7 +168,8 @@ class  LandmarkDetectorPFLD(LandmarkDetectorAbstract):
                 
             # image=cv2.resize(image, (600,400))
             # out.write(image)
-            
+            print("Image shape: ", image.shape)
+            out.write(image)
             cv2.imshow("Landmark predict: ", image)
 
             k = cv2.waitKey(0)
@@ -190,7 +208,11 @@ class PFLDLandmarkDetector(LandmarkDetectorAbstract):
             cv2.circle(image, (l[0], l[1]), 2, (255,0,0), 3)
             
         # image=cv2.resize(image, (600,400))
+        # print("Image shape: ", image.shape)
         # out.write(image)
+
+        print(image.shape)
+
         
         cv2.imshow("Landmark predict: ", image)
 
@@ -204,10 +226,12 @@ class PFLDLandmarkDetector(LandmarkDetectorAbstract):
 
 
 def main():
-    model_path = "/home/vuthede/checkpoints_landmark/mobilenetv2/checkpoint_epoch_969.pth.tar"
+    # model_path = "/home/vuthede/checkpoints_landmark/mobilenetv2/checkpoint_epoch_969.pth.tar"
+    model_path = "./checkpoint/snapshot/checkpoint.pth.tar"
+
     video = "/home/vuthede/Downloads/VID_20200630_221121_970.mp4"
-    # lmdetector = LandmarkDetectorPFLD(device="cpu", model_path=model_path)
-    lmdetector = PFLDLandmarkDetector()
+    lmdetector = LandmarkDetectorPFLD(device="cpu", model_path=model_path)
+    # lmdetector = PFLDLandmarkDetector()
     cap = cv2.VideoCapture(video)
 
     while True:
@@ -223,7 +247,7 @@ def main():
 
         lmdetector.get_68_landmarks(img)
 
-    # out.release()
+    out.release()
 
 if __name__=="__main__":
     main()

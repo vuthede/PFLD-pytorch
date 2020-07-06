@@ -39,6 +39,7 @@ class InvertedResidual(nn.Module):
         self.stride = stride
         assert stride in [1, 2]
 
+        # expand_ratio=1
         self.use_res_connect = use_res_connect
 
         self.conv = nn.Sequential(
