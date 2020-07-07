@@ -100,7 +100,7 @@ LMK98_2_68_MAP = {0: 0,
  95: 67}
 
 
-out = cv2.VideoWriter('/home/vuthede/Desktop/Pha_video_best_mobilenet_with_no_track.avi',cv2.VideoWriter_fourcc('M','J','P','G'), 10, (432,768))
+out = cv2.VideoWriter('/home/vuthede/Desktop/Pha_video_best_mobilenet_with_track.avi',cv2.VideoWriter_fourcc('M','J','P','G'), 10, (432,768))
 
 
 class  LandmarkDetectorPFLD(LandmarkDetectorAbstract):

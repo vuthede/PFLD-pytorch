@@ -10,14 +10,24 @@ class PFLDLoss(nn.Module):
         super(PFLDLoss, self).__init__()
 
     def forward(self, attribute_gt, landmark_gt, euler_angle_gt, angle, landmarks, train_batchsize, using_wingloss=False):
+        # Degree to radian
+        euler_angle_gt = euler_angle_gt*3.14/180.0
+        
+        # print(f"Angle: {angle}. euler_angle_gt: {euler_angle_gt}")
         weight_angle = torch.sum(1 - torch.cos(angle - euler_angle_gt), axis=1)
         attributes_w_n = attribute_gt[:, 1:6].float()
         mat_ratio = torch.mean(attributes_w_n, axis=0)
+        # print("---------------mat raito 1:", mat_ratio)
         mat_ratio = torch.Tensor([
-            1.0 / (x) if x > 0 else train_batchsize for x in mat_ratio
+            1.0 / (x+0.00001) if x > 0 else 0 for x in mat_ratio
         ]).to(device)
+        # print("mat raito 2:", mat_ratio)
+
         weight_attribute = torch.sum(attributes_w_n.mul(mat_ratio), axis=1)
 
+        weight_attribute = (weight_attribute<0.0001)*1 + weight_attribute 
+
+        # print(f"weight_attribut: ", weight_attribute)
         if using_wingloss:
             l2_distant = customed_wing_loss(landmark_gt, landmarks)
         else:

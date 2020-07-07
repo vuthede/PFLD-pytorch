@@ -27,8 +27,8 @@ from models.pfld import PFLDInference, AuxiliaryNet, CustomizedGhostNet, MobileF
 
 wandb.init(project="Pratical Facial Landmark Detection")
 # wandb.config.backbone = "MobileNet-v2"
-wandb.config.width_model = 0.25
-wandb.config.freeze_some_last_layers = True
+wandb.config.width_model = 1
+wandb.config.freeze_some_last_layers = False
 wandb.config.pfld_backbone = "MobileNet2" # Or MobileNet2
 # wandb.config.ghostnet_width = 1
 # wandb.config.ghostnet_with_pretrained_weight_image_net = True
