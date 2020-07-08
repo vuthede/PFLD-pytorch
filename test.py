@@ -125,7 +125,7 @@ def validate(wlfw_val_dataloader, plfd_backbone):
 
 def main(args):
     checkpoint = torch.load(args.model_path, map_location=device)
-    plfd_backbone = PFLDInference().to(device)
+    plfd_backbone = PFLDInference(alpha=1.0).to(device)
     # plfd_backbone = CustomizedGhostNet(width=1, dropout=0.2).to(device)
     plfd_backbone.load_state_dict(checkpoint['plfd_backbone'])
 

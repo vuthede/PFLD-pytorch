@@ -166,10 +166,37 @@ def train(train_loader, plfd_backbone, auxiliarynet, criterion, optimizer,
     return weighted_loss, loss
 
 
+def compute_nme(preds, target):
+    """ preds/target:: numpy array, shape is (N, L, 2)
+        N: batchsize L: num of landmark 
+    """
+    N = preds.shape[0]
+    L = preds.shape[1]
+    rmse = np.zeros(N)
+
+    for i in range(N):
+        pts_pred, pts_gt = preds[i, ], target[i, ]
+       
+        if L == 19:  # aflw
+            interocular = 34 # meta['box_size'][i]
+        elif L == 29:  # cofw
+            interocular = np.linalg.norm(pts_gt[8, ] - pts_gt[9, ])
+        elif L == 68:  # 300w
+            # interocular
+            interocular = np.linalg.norm(pts_gt[36, ] - pts_gt[45, ])
+        elif L == 98:
+            interocular = np.linalg.norm(pts_gt[60, ] - pts_gt[72, ])
+        else:
+            raise ValueError('Number of landmarks is wrong')
+        rmse[i] = np.sum(np.linalg.norm(pts_pred - pts_gt, axis=1)) / (interocular * L)
+
+    return rmse
+
 def validate(wlfw_val_dataloader, plfd_backbone, auxiliarynet, criterion):
     plfd_backbone.eval()
     auxiliarynet.eval() 
     losses = []
+    nme_list = []
     with torch.no_grad():
         for img, landmark_gt, attribute_gt, euler_angle_gt in wlfw_val_dataloader:
             img = img.to(device)
@@ -181,8 +208,14 @@ def validate(wlfw_val_dataloader, plfd_backbone, auxiliarynet, criterion):
             _, landmark = plfd_backbone(img)
             loss = torch.mean(torch.sum((landmark_gt - landmark)**2, axis=1))
             losses.append(loss.cpu().numpy())
+            nme_batch = compute_nme(landmark, landmark_gt)
+            nme_list.append(nme_batch)
+    
+    wandb.log({"metric/valid_nme_loss": np.mean(nme_list)})
     print("===> Evaluate:")
     print('Eval set: Average loss: {:.4f} '.format(np.mean(losses)))
+    print(f'NME loss :{np.mean(nme_list)}')
+
     return np.mean(losses)
 
 
@@ -247,7 +280,9 @@ def main(args):
         }],
         lr=args.base_lr,
         weight_decay=args.weight_decay)
-    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', patience=args.lr_patience, verbose=True)
+    # scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', patience=args.lr_patience, verbose=True)
+    scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=200 ,gamma=0.1)
+
 
     # step 3: data
     # argumetion
@@ -286,7 +321,8 @@ def main(args):
         
         wandb.log({"metric/val_loss": val_loss})
 
-        scheduler.step(val_loss)
+        # scheduler.step(val_loss)
+        scheduler.step()
         writer.add_scalar('data/weighted_loss', weighted_train_loss, epoch)
         writer.add_scalars('data/loss', {'val loss': val_loss, 'train loss': train_loss}, epoch)
     writer.close()
@@ -301,7 +337,7 @@ def parse_args():
 
     # training
     ##  -- optimizer
-    parser.add_argument('--base_lr', default=0.0001, type=float)
+    parser.add_argument('--base_lr', default=0.001, type=float) # Origial is 0.0001 for  ReduceLROnPlateau. 
     parser.add_argument('--weight-decay', '--wd', default=1e-6, type=float)
 
     # -- lr

@@ -14,7 +14,7 @@ class PFLDLoss(nn.Module):
         euler_angle_gt = euler_angle_gt*3.14/180.0
         
         # print(f"Angle: {angle}. euler_angle_gt: {euler_angle_gt}")
-        weight_angle = torch.sum(1 - torch.cos(angle - euler_angle_gt), axis=1)
+        weight_angle = 1 + torch.sum(1 - torch.cos(angle - euler_angle_gt), axis=1)
         attributes_w_n = attribute_gt[:, 1:6].float()
         mat_ratio = torch.mean(attributes_w_n, axis=0)
         # print("---------------mat raito 1:", mat_ratio)
@@ -25,13 +25,19 @@ class PFLDLoss(nn.Module):
 
         weight_attribute = torch.sum(attributes_w_n.mul(mat_ratio), axis=1)
 
-        weight_attribute = (weight_attribute<0.0001)*1 + weight_attribute 
+        weight_attribute_tmp = (weight_attribute<0.0001).type(torch.FloatTensor).to(device)
+        weight_attribute = weight_attribute_tmp*1.0 + weight_attribute
 
         # print(f"weight_attribut: ", weight_attribute)
+        # print(f"weight_angle : ", weight_angle)
+
         if using_wingloss:
             l2_distant = customed_wing_loss(landmark_gt, landmarks)
         else:
             l2_distant = torch.sum((landmark_gt - landmarks) * (landmark_gt - landmarks), axis=1)
+
+        print(f"l2 distant : ", l2_distant)
+
 
         return torch.mean(weight_angle * weight_attribute * l2_distant), torch.mean(l2_distant)
 
