@@ -36,7 +36,7 @@ class PFLDLoss(nn.Module):
         else:
             l2_distant = torch.sum((landmark_gt - landmarks) * (landmark_gt - landmarks), axis=1)
 
-        print(f"l2 distant : ", l2_distant)
+        #print(f"l2 distant : ", l2_distant)
 
 
         return torch.mean(weight_angle * weight_attribute * l2_distant), torch.mean(l2_distant)

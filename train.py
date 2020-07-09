@@ -162,7 +162,7 @@ def train(train_loader, plfd_backbone, auxiliarynet, criterion, optimizer,
         wandb.log({"metric/loss":loss.item()})
         wandb.log({"metric/weighted_loss": weighted_loss.detach().cpu().numpy()})
         logger.info(f"Epoch:{epoch}. Lr:{optimizer.param_groups[0]['lr']} Batch {i} / {num_batch} batches. Loss: {loss.item()}. Weighted_loss:{ weighted_loss.detach().cpu().numpy()}")
-
+        
     return weighted_loss, loss
 
 
@@ -170,6 +170,9 @@ def compute_nme(preds, target):
     """ preds/target:: numpy array, shape is (N, L, 2)
         N: batchsize L: num of landmark 
     """
+    preds = preds.reshape(preds.shape[0], -1, 2).cpu().numpy() # landmark 
+    target = target.reshape(target.shape[0], -1, 2).cpu().numpy() # landmark_gt
+
     N = preds.shape[0]
     L = preds.shape[1]
     rmse = np.zeros(N)
@@ -188,9 +191,10 @@ def compute_nme(preds, target):
             interocular = np.linalg.norm(pts_gt[60, ] - pts_gt[72, ])
         else:
             raise ValueError('Number of landmarks is wrong')
-        rmse[i] = np.sum(np.linalg.norm(pts_pred - pts_gt, axis=1)) / (interocular * L)
+        rmse[i] = np.sum(np.linalg.norm(pts_pred - pts_gt, axis=1)) / (interocular)
 
     return rmse
+
 
 def validate(wlfw_val_dataloader, plfd_backbone, auxiliarynet, criterion):
     plfd_backbone.eval()
@@ -209,7 +213,7 @@ def validate(wlfw_val_dataloader, plfd_backbone, auxiliarynet, criterion):
             loss = torch.mean(torch.sum((landmark_gt - landmark)**2, axis=1))
             losses.append(loss.cpu().numpy())
             nme_batch = compute_nme(landmark, landmark_gt)
-            nme_list.append(nme_batch)
+            nme_list += list(nme_batch) # Concat list
     
     wandb.log({"metric/valid_nme_loss": np.mean(nme_list)})
     print("===> Evaluate:")
@@ -280,7 +284,7 @@ def main(args):
         }],
         lr=args.base_lr,
         weight_decay=args.weight_decay)
-    # scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', patience=args.lr_patience, verbose=True)
+    #scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', patience=args.lr_patience,factor=0.5, verbose=True)
     scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=200 ,gamma=0.1)
 
 
@@ -321,7 +325,7 @@ def main(args):
         
         wandb.log({"metric/val_loss": val_loss})
 
-        # scheduler.step(val_loss)
+        #scheduler.step(val_loss)
         scheduler.step()
         writer.add_scalar('data/weighted_loss', weighted_train_loss, epoch)
         writer.add_scalars('data/loss', {'val loss': val_loss, 'train loss': train_loss}, epoch)
@@ -341,7 +345,7 @@ def parse_args():
     parser.add_argument('--weight-decay', '--wd', default=1e-6, type=float)
 
     # -- lr
-    parser.add_argument("--lr_patience", default=40, type=int)
+    parser.add_argument("--lr_patience", default=4, type=int)
 
     # -- epoch
     parser.add_argument('--start_epoch', default=1, type=int)
@@ -371,7 +375,7 @@ def parse_args():
         default='./data/test_data/list.txt',
         type=str,
         metavar='PATH')
-    parser.add_argument('--train_batchsize', default=2, type=int)
+    parser.add_argument('--train_batchsize', default=256, type=int)
     parser.add_argument('--val_batchsize', default=8, type=int)
     args = parser.parse_args()
     return args
