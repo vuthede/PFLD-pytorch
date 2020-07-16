@@ -114,12 +114,27 @@ class  LandmarkDetectorPFLD(LandmarkDetectorAbstract):
         self.plfd_backbone.eval()
         self.first=True
         self.tracker = cv2.TrackerKCF_create()
+        self.padding = 5
+
+    def make_box_square(self, box):
+        x,y, x1, y1 = box
+        mx = (x+x1)//2
+        my = (y+y1)//2
+        pad = max(x1-x, y1-y)//2
+        x = mx-pad
+        y = my-pad
+        x1 = mx + pad
+        y1 = my+pad
+
+        return [x, y, x1, y1]
 
 
     def get_68_landmarks(self, image):
         with torch.no_grad():
             # if self.first:
             #     box = self.mtcnn.detect_single_face(image) # x1, y1, x2, y2 Here is mtcnn in this repo
+            #     box = self.make_box_square(box)
+
             #     self.tracker.init(image, (box[0]-20, box[1]-20, box[2] - box[0]+20, box[3] - box[1]+20))
             #     self.first = False
             # else:
@@ -127,8 +142,12 @@ class  LandmarkDetectorPFLD(LandmarkDetectorAbstract):
             #     box = list(box)
             #     box[2] += box[0]
             #     box[3] += box[1]
-            box = self.mtcnn.detect_single_face(image) # x1, y1, x2, y2 Here is mtcnn in this repo
+            #     box = self.make_box_square(box)
+
+            box = self.mtcnn.detect_single_face(image,100) # x1, y1, x2, y2 Here is mtcnn in this repo
             if len(box):
+                box = self.make_box_square(box)
+
                 self.tracker = cv2.TrackerKCF_create()
                 self.tracker.init(image, (box[0], box[1], box[2] - box[0], box[3] - box[1]))
             else:
@@ -136,10 +155,12 @@ class  LandmarkDetectorPFLD(LandmarkDetectorAbstract):
                 box = list(box)
                 box[2] += box[0]
                 box[3] += box[1]
+                box = self.make_box_square(box)
+
 
             landmarks = []
             if len(box):
-                padding=20
+                padding=self.padding
                 x,y,x1,y1 = map(int, box)
                 x = max(0, x-padding)
                 y = max(0, y-padding)
@@ -174,7 +195,14 @@ class  LandmarkDetectorPFLD(LandmarkDetectorAbstract):
 
             k = cv2.waitKey(0)
 
+            if k==27:
+                cv2.destroyAllWindows()
             
+            if ord('d')==k:
+                self.padding+=1
+            
+            if ord('a')==k:
+                self.padding-=1
 
             return landmarks
 
@@ -227,21 +255,23 @@ class PFLDLandmarkDetector(LandmarkDetectorAbstract):
 
 def main():
     # model_path = "/home/vuthede/checkpoints_landmark/mobilenetv2/checkpoint_epoch_969.pth.tar"
-    model_path = "./checkpoint/snapshot/checkpoint.pth.tar"
+    model_path = "/home/vuthede/checkpoints_landmark/mobilenetv2_correctloss/checkpoint_epoch_230.pth.tar"
 
     video = "/home/vuthede/Downloads/VID_20200630_221121_970.mp4"
     lmdetector = LandmarkDetectorPFLD(device="cpu", model_path=model_path)
     # lmdetector = PFLDLandmarkDetector()
-    cap = cv2.VideoCapture(video)
+    # cap = cv2.VideoCapture(video)
+    cap = cv2.VideoCapture(0)
+
 
     while True:
         ret, img = cap.read()
-        img = cv2.rotate(img, cv2.ROTATE_90_COUNTERCLOCKWISE)
-        img = cv2.resize(img, None, fx=0.4, fy=0.4)
+        # img = cv2.rotate(img, cv2.ROTATE_90_COUNTERCLOCKWISE)
+        # img = cv2.resize(img, None, fx=0.4, fy=0.4)
         if not ret:
             break
 
-        # cv2.imshow("Image", img)
+        cv2.imshow("Image", img)
         k = cv2.waitKey(1)
 
 

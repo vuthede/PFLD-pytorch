@@ -18,7 +18,7 @@ import torch.backends.cudnn as cudnn
 from dataset.datasets import WLFWDatasets
 
 from models.pfld import PFLDInference, AuxiliaryNet, CustomizedGhostNet
-# from mtcnn.detector import MTCNN
+from mtcnn.detector import MTCNN
 from loss.LSE_loss import LandmarkDetectorAbstract, calculateLSEInOneVideo
 import dlib
 from imutils import face_utils
@@ -104,8 +104,8 @@ class  LandmarkDetectorPFLD(LandmarkDetectorAbstract):
     def __init__(self, device, model_path):
         self.mtcnn = MTCNN()
         self.transform = transforms.Compose([transforms.ToTensor()])
-        self.plfd_backbone = CustomizedGhostNet(width=1, dropout=0.2).to(device)
-        # self.plfd_backbone = PFLDInference()
+        # self.plfd_backbone = CustomizedGhostNet(width=1, dropout=0.2).to(device)
+        self.plfd_backbone = PFLDInference()
         checkpoint = torch.load(model_path, map_location=device)
         self.plfd_backbone.load_state_dict(checkpoint['plfd_backbone'])
         self.plfd_backbone.eval()
@@ -123,6 +123,7 @@ class  LandmarkDetectorPFLD(LandmarkDetectorAbstract):
             face = cv2.resize(face, (112, 112))
             face = self.transform(face)
             face = torch.unsqueeze(face, 0)
+            t1  = time.time()
             _, landmarks = self.plfd_backbone(face)   
             landmarks = landmarks.cpu().numpy()
             landmarks = landmarks.reshape(landmarks.shape[0], -1, 2) # landmark 
@@ -193,8 +194,8 @@ class PFLDLandmarkDetector(LandmarkDetectorAbstract):
 
 
 def main(args):
-    # lmdetector = LandmarkDetectorPFLD(device="cpu", model_path=args.model_path)
-    lmdetector =  PFLDLandmarkDetector()
+    lmdetector = LandmarkDetectorPFLD(device="cpu", model_path=args.model_path)
+    # lmdetector =  PFLDLandmarkDetector()
     
     mlse = calculateLSEInOneVideo(lmdetector, args.video, args.annot)
 
