@@ -436,9 +436,11 @@ class MobileFacenet(nn.Module):
         return share_features, x
 
 class AuxiliaryNet(nn.Module):
-    def __init__(self, alpha):
+    def __init__(self, alpha, base_channel=None):
         super(AuxiliaryNet, self).__init__()
         self.base_channel = int(64*alpha)
+        if base_channel != None:
+            self.base_channel = base_channel
         self.conv1 = conv_bn(self.base_channel, 128, 3, 2)  # Original of PFLd is 64 but I used 80  or 40 here to match with ghostnet/ghostnet2 model
         self.conv2 = conv_bn(128, 128, 3, 1)
         self.conv3 = conv_bn(128, 32, 3, 2)

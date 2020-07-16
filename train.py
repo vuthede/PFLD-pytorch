@@ -23,13 +23,13 @@ from pfld.utils import AverageMeter
 import wandb
 import logging
 from models.pfld import PFLDInference, AuxiliaryNet, CustomizedGhostNet, MobileFacenet
-
+from models.rexnet import ReXNetV1
 
 wandb.init(project="Pratical Facial Landmark Detection")
 # wandb.config.backbone = "MobileNet-v2"
 wandb.config.width_model = 1
 wandb.config.freeze_some_last_layers = False
-wandb.config.pfld_backbone = "MobileNet2" # Or MobileNet2
+wandb.config.pfld_backbone = "RexNetV1" # Or MobileNet2 Or RexNet
 # wandb.config.ghostnet_width = 1
 # wandb.config.ghostnet_with_pretrained_weight_image_net = True
 wandb.config.using_wingloss = False
@@ -238,6 +238,8 @@ def main(args):
     # Step 2: model, criterion, optimizer, scheduler
     if wandb.config.pfld_backbone == "GhostNet":
         plfd_backbone = CustomizedGhostNet(width=wandb.config.ghostnet_width, dropout=0.2)
+        auxiliarynet = AuxiliaryNet(alpha=wandb.config.width_model).to(device)
+
         logger.info(f"Using GHOSTNET with width={wandb.config.ghostnet_width} as backbone of PFLD backbone")
 
         # If using pretrained weight from ghostnet model trained on image net
@@ -248,10 +250,20 @@ def main(args):
             
     elif wandb.config.pfld_backbone == "MobileFaceNet":
         plfd_backbone = MobileFacenet()
+        auxiliarynet = AuxiliaryNet(alpha=wandb.config.width_model).to(device)
         logger.info(f"Using MobileFacenetas backbone of PFLD backbone")
+    
+    elif wandb.config.pfld_backbone == "RexNetV1":
+        plfd_backbone = ReXNetV1(width_mult=wandb.config.width_model)
+        if wandb.config.width_model==1:
+            base_channel_auxiliarynet = 38
+        auxiliarynet = AuxiliaryNet(alpha=wandb.config.width_model, base_channel=base_channel_auxiliarynet).to(device)
+        logger.info(f"Using ReXNetV1 backbone of PFLD backbone")
 
     else:
         plfd_backbone = PFLDInference(alpha=wandb.config.width_model).to(device) # MobileNet2 defaut
+        auxiliarynet = AuxiliaryNet(alpha=wandb.config.width_model).to(device)
+        
         logger.info(f"Using MobileNet2 as backbone of PFLD backbone with width = {wandb.config.width_model}")
 
         if wandb.config.freeze_some_last_layers:
@@ -259,8 +271,6 @@ def main(args):
                                         mobilenetv2_checkpoint="./checkpoint_mobilenetv2/snapshot/checkpoint.pth.tar")
             logger.info(f"Using MobileNet2. Load weights from pretrained into some last layers and freeze them ")
 
-
-    auxiliarynet = AuxiliaryNet(alpha=wandb.config.width_model).to(device)
 
     # Load checkpoints
     if args.resume != '':
@@ -375,7 +385,7 @@ def parse_args():
         default='./data/test_data/list.txt',
         type=str,
         metavar='PATH')
-    parser.add_argument('--train_batchsize', default=256, type=int)
+    parser.add_argument('--train_batchsize', default=2, type=int)
     parser.add_argument('--val_batchsize', default=8, type=int)
     args = parser.parse_args()
     return args
