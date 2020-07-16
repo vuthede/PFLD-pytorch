@@ -24,12 +24,14 @@ import wandb
 import logging
 from models.pfld import PFLDInference, AuxiliaryNet, CustomizedGhostNet, MobileFacenet
 from models.rexnet import ReXNetV1
+from models.resnet import resnet101PFLD
 
 wandb.init(project="Pratical Facial Landmark Detection")
 # wandb.config.backbone = "MobileNet-v2"
 wandb.config.width_model = 1
 wandb.config.freeze_some_last_layers = False
-wandb.config.pfld_backbone = "RexNetV1" # Or MobileNet2 Or RexNet
+# wandb.config.pfld_backbone = "RexNetV1" # Or MobileNet2 Or RexNet
+wandb.config.pfld_backbone = "ResNet101" # It is customized for PFLD  
 # wandb.config.ghostnet_width = 1
 # wandb.config.ghostnet_with_pretrained_weight_image_net = True
 wandb.config.using_wingloss = False
@@ -259,6 +261,13 @@ def main(args):
             base_channel_auxiliarynet = 38
         auxiliarynet = AuxiliaryNet(alpha=wandb.config.width_model, base_channel=base_channel_auxiliarynet).to(device)
         logger.info(f"Using ReXNetV1 backbone of PFLD backbone")
+
+    elif wandb.config.pfld_backbone == "ResNet101":
+        plfd_backbone = resnet101PFLD()
+        base_channel_auxiliarynet = 128
+        auxiliarynet = AuxiliaryNet(alpha=wandb.config.width_model, base_channel=base_channel_auxiliarynet).to(device)
+        logger.info(f"Using ResNet101 backbone of PFLD backbone")
+
 
     else:
         plfd_backbone = PFLDInference(alpha=wandb.config.width_model).to(device) # MobileNet2 defaut
