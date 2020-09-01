@@ -42,6 +42,21 @@ class PFLDLoss(nn.Module):
         return torch.mean(weight_angle * weight_attribute * l2_distant), torch.mean(l2_distant)
 
 
+class PFLDLossNoWeight(nn.Module):
+    def __init__(self):
+        super(PFLDLossNoWeight, self).__init__()
+
+    def forward(self, landmark_gt, landmarks, train_batchsize, using_wingloss=False):
+
+        if using_wingloss:
+            l2_distant = customed_wing_loss(landmark_gt, landmarks)
+        else:
+            l2_distant = torch.sum((landmark_gt - landmarks) * (landmark_gt - landmarks), axis=1)
+
+
+        return torch.mean(l2_distant), torch.mean(l2_distant)
+
+
 def customed_wing_loss(y_true, y_pred, w=10.0, epsilon=2.0):
     c = w * (1.0 - math.log(1.0 + w / epsilon))
     x = y_true - y_pred
