@@ -1,3 +1,4 @@
+
 """
 Implement Landmark Stability Loss mentioned in that 
 https://www.researchgate.net/publication/332866914_Analysis_and_Improvement_of_Facial_Landmark_Detection
@@ -32,7 +33,9 @@ class PFLDLandmarkDetector(LandmarkDetectorAbstract):
     
 
     detector = dlib.get_frontal_face_detector()
-    predictor = dlib.shape_predictor("/home/vuthede/VinAI/mydeformation/model.dat")
+    # predictor = dlib.shape_predictor("/home/vuthede/VinAI/mydeformation/model.dat")
+    predictor = dlib.shape_predictor("/home/vuthede/VinAI/FaceBeautification/notebooks/shape_predictor_68_face_landmarks.dat")
+
 
     def get_rect_and_keypoints(self, image):
         gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
@@ -66,6 +69,7 @@ def calculateLSEInOneVideo(lmdetector, videopath, annodir):
             a = l.split(" ")
             a = [float(i) for i in a]
             lm.append(a)
+
         
         lm = np.array(lm)
         assert len(lm)==68, "There should be 68 landmarks. Get {len(lm)}"
