@@ -281,8 +281,10 @@ class MTCNN():
     def detect_single_face(self, image,  min_face_size=20.0,
                             thresholds=[0.6, 0.7, 0.8],
                             nms_thresholds=[0.7, 0.7, 0.7]):
-        
-        bboxs, _ = self.detect_faces(image, min_face_size, thresholds, nms_thresholds)
+        try:
+            bboxs, _ = self.detect_faces(image, min_face_size, thresholds, nms_thresholds)
+        except:
+            bboxs = []
         if len(bboxs):
             box = bboxs[0][:4]
             box = np.array([int(i) for i in box])
