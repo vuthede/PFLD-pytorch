@@ -35,10 +35,10 @@ wandb.config.pfld_backbone = "Resnet101PFLD106lmks" # It is customized for PFLD
 # wandb.config.ghostnet_width = 1
 # wandb.config.ghostnet_with_pretrained_weight_image_net = True
 wandb.config.using_wingloss = False
-wandb.config.train_img = "/home/vuthede/data/LaPa/train/images"
-wandb.config.train_lmks = "/home/vuthede/data/LaPa/train/landmarks"
-wandb.config.valid_img = "/home/vuthede/data/LaPa/val/images"
-wandb.config.valid_lmks = "/home/vuthede/data/LaPa/val/landmarks"
+wandb.config.train_img = "/home/ubuntu/LaPa/train/images"
+wandb.config.train_lmks = "/home/ubuntu/LaPa/train/landmarks"
+wandb.config.valid_img = "/home/ubuntu/LaPa/val/images"
+wandb.config.valid_lmks = "/home/ubuntu/LaPa/val/landmarks"
 
 
 
@@ -320,7 +320,7 @@ def parse_args():
         default='./data/test_data/list.txt',
         type=str,
         metavar='PATH')
-    parser.add_argument('--train_batchsize', default=2, type=int)
+    parser.add_argument('--train_batchsize', default=128, type=int)
     parser.add_argument('--val_batchsize', default=8, type=int)
     args = parser.parse_args()
     return args

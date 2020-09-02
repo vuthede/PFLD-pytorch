@@ -83,6 +83,7 @@ class LAPA106DataSet(data.Dataset):
         # Original cut face and lamks
         imgT_original = cv2.resize(imgT, self.TARGET_IMAGE_SIZE)
         landmark_original = (self.landmark - xy)/boxsize
+        landmark_original = np.reshape(landmark_original, (-1)).astype(np.float32)
         assert (landmark_original >= 0).all(), str(landmark_original) + str([dx, dy])
         assert (landmark_original <= 1).all(), str(landmark_original) + str([dx, dy])
         if self.transforms:
@@ -103,6 +104,8 @@ class LAPA106DataSet(data.Dataset):
         size = np.random.randint(int(np.min(wh)), np.ceil(np.max(wh) * 1.25))
         xy = np.asarray((cx - size // 2, cy - size//2), dtype=np.int32)
         landmark = (landmark - xy) / size
+        landmark = np.reshape(landmark, (-1)).astype(np.float32)
+
         if (landmark < 0).any() or (landmark > 1).any():
             fail_augment=True
 
