@@ -25,20 +25,20 @@ import wandb
 import logging
 from models.pfld import PFLDInference, AuxiliaryNet, CustomizedGhostNet, MobileFacenet
 from models.rexnet import ReXNetV1
-from models.resnet import resnet101PFLD, resnet101BottleNeckPFLD, resnet101PFLD106lmks
+from models.resnet import resnet101PFLD, resnet101BottleNeckPFLD, resnet101PFLD106lmks, resnet101PFLD106lmksNoPyramid
 
 wandb.init(project="Pratical Facial Landmark Detection on LAPA data")
 # wandb.config.backbone = "MobileNet-v2"
 wandb.config.width_model = 1
 # wandb.config.pfld_backbone = "RexNetV1" # Or MobileNet2 Or RexNet
-wandb.config.pfld_backbone = "Resnet101PFLD106lmks" # It is customized for PFLD  
+wandb.config.pfld_backbone = "Resnet101PFLD106lmksNoPyramid" # It is customized for PFLD  
 # wandb.config.ghostnet_width = 1
 # wandb.config.ghostnet_with_pretrained_weight_image_net = True
 wandb.config.using_wingloss = False
-wandb.config.train_img = "/home/ubuntu/LaPa/train/images"
-wandb.config.train_lmks = "/home/ubuntu/LaPa/train/landmarks"
-wandb.config.valid_img = "/home/ubuntu/LaPa/val/images"
-wandb.config.valid_lmks = "/home/ubuntu/LaPa/val/landmarks"
+wandb.config.train_img = "/home/vuthede/data/LaPa/train/images"
+wandb.config.train_lmks = "/home/vuthede/data/LaPa/train/landmarks"
+wandb.config.valid_img = "/home/vuthede/data/LaPa/val/images"
+wandb.config.valid_lmks = "/home/vuthede/data/LaPa/val/landmarks"
 
 
 
@@ -190,6 +190,14 @@ def main(args):
         auxiliarynet = AuxiliaryNet(alpha=wandb.config.width_model, base_channel=base_channel_auxiliarynet).to(device)
         logger.info(f"Using ResNet101 backbone for 106 lmks")
 
+    elif wandb.config.pfld_backbone == "Resnet101PFLD106lmksNoPyramid":
+        plfd_backbone = resnet101PFLD106lmksNoPyramid()
+        base_channel_auxiliarynet = 128
+        auxiliarynet = AuxiliaryNet(alpha=wandb.config.width_model, base_channel=base_channel_auxiliarynet).to(device)
+        logger.info(f"Using ResNet101 backbone for 106 lmks with No Pyramid features")
+
+        
+
     elif wandb.config.pfld_backbone == "ResNet101BotteNeck":
         plfd_backbone = resnet101BottleNeckPFLD()
         expansion=4 # Botteck of resnet have expansion=4 for the number of features as ouput
@@ -320,7 +328,7 @@ def parse_args():
         default='./data/test_data/list.txt',
         type=str,
         metavar='PATH')
-    parser.add_argument('--train_batchsize', default=128, type=int)
+    parser.add_argument('--train_batchsize', default=2, type=int)
     parser.add_argument('--val_batchsize', default=8, type=int)
     args = parser.parse_args()
     return args
