@@ -5,7 +5,7 @@ sys.path.append('..')
 
 from torch.utils import data
 import glob
-
+import os
 
 def rotate(angle, center, landmark):
     rad = angle * np.pi / 180.0
@@ -53,14 +53,24 @@ class LAPA106DataSet(data.Dataset):
     def __getitem__(self, index):
         f = self.img_path_list[index]
         self.img = cv2.imread(f)
-        self.landmark = self._get_106_landmarks(f.replace(self.img_dir, self.anno_dir).replace(".jpg", ".txt"))
+        # self.landmark = self._get_106_landmarks(f.replace(self.img_dir, self.anno_dir).replace(".jpg", ".txt"))
+
+        replacing_extension = ".txt"
+        if "AFW" in os.path.basename(f) or \
+           "HELEN" in os.path.basename(f) or \
+           "IBUG" in os.path.basename(f) or \
+           "LFPW" in os.path.basename(f):        
+            replacing_extension = ".jpg.txt"
+
+        self.landmark = self._get_106_landmarks(f.replace(self.img_dir, self.anno_dir).replace(".jpg", replacing_extension))
+
 
         xy = np.min(self.landmark, axis=0).astype(np.int32) 
         zz = np.max(self.landmark, axis=0).astype(np.int32)
         wh = zz - xy + 1
 
         center = (xy + wh/2).astype(np.int32)
-        boxsize = int(np.max(wh)*1.2)
+        boxsize = int(np.max(wh)*1.6)
         xy = center - boxsize//2
         x1, y1 = xy
         x2, y2 = xy + boxsize
@@ -163,15 +173,18 @@ class LAPA106DataSet(data.Dataset):
 
 
 if __name__ == "__main__":
-    dataset = LAPA106DataSet(img_dir="/home/vuthede/data/LaPa/train/images",
-                            anno_dir="/home/vuthede/data/LaPa/train/landmarks")
+    # dataset = LAPA106DataSet(img_dir="/home/vuthede/data/LaPa/train/images",
+                            # anno_dir="/home/vuthede/data/LaPa/train/landmarks")
     
-    img, lmks = dataset[20]
+    dataset = LAPA106DataSet(img_dir="/home/vuthede/data/Training_data/AFW/picture",
+                            anno_dir="/home/vuthede/data/Training_data/AFW/landmark")
+    
+    img, lmks = dataset[19]
     lmks = np.reshape(lmks, (-1,2)) *112
 
     import matplotlib.pyplot as plt
 
-    for p in lmks:
+    for p in lmks[[1,10,11,17, 98]]:
         p = p.astype(int)
         cv2.circle(img, tuple(p), 1, (255, 0, 0), 1)
     
