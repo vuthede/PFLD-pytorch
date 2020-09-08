@@ -18,7 +18,7 @@ import torch.backends.cudnn as cudnn
 from dataset.datasets import WLFWDatasets
 
 from models.pfld import PFLDInference, AuxiliaryNet, CustomizedGhostNet
-from models.resnet import resnet101PFLD
+from models.resnet import resnet101PFLD, resnet101PFLD106lmks
 # from mtcnn.detector import MTCNN
 # from mtcnn import MTCNN
 from loss.LSE_loss import LandmarkDetectorAbstract, calculateLSEInOneVideo
@@ -108,7 +108,7 @@ LMK98_2_68_MAP = {0: 0,
  95: 67}
 
 
-out = cv2.VideoWriter('/home/vuthede/Desktop/lmks_results/car_resnet198_retina.avi',cv2.VideoWriter_fourcc('M','J','P','G'), 15, (640,480))
+out = cv2.VideoWriter('/home/vuthede/Desktop/lmks_results/2.extreme.avi',cv2.VideoWriter_fourcc('M','J','P','G'), 25, (1080,1920))
 
 
 """
@@ -166,10 +166,6 @@ def transform(data, center, output_size, scale, rotation):
     cx = center[0]*scale_ratio
     cy = center[1]*scale_ratio
     t2 = trans.SimilarityTransform(translation=(-1*cx, -1*cy))
-    t3 = trans.SimilarityTransform(rotation=rot)
-    t4 = trans.SimilarityTransform(translation=(output_size/2, output_size/2))
-    t = t1+t2+t3+t4
-    M = t.params[0:2]
     cropped = cv2.warpAffine(data,M,(output_size, output_size), borderValue = 0.0)
     return cropped, M
 
@@ -212,8 +208,9 @@ class  LandmarkDetectorPFLD(LandmarkDetectorAbstract):
         self.retina.prepare(ctx_id=ctx_id)
         self.transform = transforms.Compose([transforms.ToTensor()])
         # self.plfd_backbone = CustomizedGhostNet(width=1, dropout=0.2).to(device)
-        # self.plfd_backbone = PFLDInference()
-        self.plfd_backbone = resnet101PFLD()
+        self.plfd_backbone = PFLDInference()
+        # self.plfd_backbone = resnet101PFLD()
+        # self.plfd_backbone = resnet101PFLD106lmks()
         checkpoint = torch.load(model_path, map_location=device)
         print(f"here is checkpoint##############: {checkpoint.keys()}")
         self.plfd_backbone.load_state_dict(checkpoint['plfd_backbone'])
@@ -305,7 +302,7 @@ class  LandmarkDetectorPFLD(LandmarkDetectorAbstract):
             out.write(image)
             cv2.imshow("Landmark predict: ", image)
 
-            k = cv2.waitKey(1)
+            k = cv2.waitKey(0)
 
             if k==27:
                 cv2.destroyAllWindows()
@@ -368,12 +365,16 @@ class PFLDLandmarkDetector(LandmarkDetectorAbstract):
 def main():
     # model_path = "/home/vuthede/checkpoints_landmark/mobilenetv2/checkpoint_epoch_969.pth.tar"
     # model_path = "/home/vuthede/checkpoints_landmark/mobilenetv2_correctloss/checkpoint_epoch_230.pth.tar"
-    model_path = "./checkpoint_resnet101/checkpoint_epoch_403.pth.tar"
-    # model_path = "./checkpoint_mobilenetv2/checkpoint_epoch_230.pth.tar"
+    # model_path = "./checkpoint_resnet101/checkpoint_epoch_403.pth.tar"
+    model_path = "./checkpoint_mobilenetv2/checkpoint_epoch_230.pth.tar"
+    # model_path = "./checkpoints_resnet101_106lmks/checkpoint_epoch_116.pth.tar"
+    # model_path = "./checkpoints_resnet101_106lmks/augment/checkpoint_epoch_157.pth.tar"
 
 
-    video = "/home/vuthede/data/car/FrontWheel_RGB.mp4"
-    lmdetector = LandmarkDetectorPFLD(device="cuda:0", model_path=model_path)
+    # video = "/home/vuthede/data/car/FrontWheel_RGB.mp4"
+    video = "/home/vuthede/Downloads/2.extreme.mp4"
+
+    lmdetector = LandmarkDetectorPFLD(device="cpu", model_path=model_path)
     # lmdetector = PFLDLandmarkDetector()
     cap = cv2.VideoCapture(video)
     # cap = cv2.VideoCapture(0)
@@ -381,7 +382,7 @@ def main():
 
     while True:
         ret, img = cap.read()
-        # img = cv2.rotate(img, cv2.ROTATE_90_COUNTERCLOCKWISE)
+        img = cv2.rotate(img, cv2.ROTATE_90_CLOCKWISE)
         # img = cv2.resize(img, None, fx=0.4, fy=0.4)
         if not ret:
             break
