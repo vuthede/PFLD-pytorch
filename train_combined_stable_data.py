@@ -36,13 +36,13 @@ wandb.config.pfld_backbone = "resnet101PFLD68lmks" # It is customized for PFLD
 # wandb.config.ghostnet_width = 1
 # wandb.config.ghostnet_with_pretrained_weight_image_net = True
 wandb.config.using_wingloss = False
-wandb.config.data_file_train_LP_rec = "/home/vuthede/data/pfld_1.0_68_style_LP_VW/pfld_train_data_LP.rec"
-wandb.config.data_file_train_Style_rec = "/home/vuthede/data/pfld_1.0_68_style_LP_VW/pfld_train_data_style.rec"
-wandb.config.data_file_train_VW_rec = "/home/vuthede/data/pfld_1.0_68_style_LP_VW/pfld_train_data_VW.rec"
+wandb.config.data_file_train_LP_rec = "/home/ubuntu/pfld_1.0_68_style_LP_VW/pfld_train_data_LP.rec"
+wandb.config.data_file_train_Style_rec = "/home/ubuntu/pfld_1.0_68_style_LP_VW/pfld_train_data_style.rec"
+wandb.config.data_file_train_VW_rec = "/home/ubuntu/pfld_1.0_68_style_LP_VW/pfld_train_data_VW.rec"
 
-wandb.config.data_file_valid_LP_rec = "/home/vuthede/data/pfld_1.0_68_style_LP_VW/pfld_test_data_LP.rec"
-wandb.config.data_file_valid_Style_rec = "/home/vuthede/data/pfld_1.0_68_style_LP_VW/pfld_test_data_style.rec"
-wandb.config.data_file_valid_VW_rec = "/home/vuthede/data/pfld_1.0_68_style_LP_VW/pfld_test_data_VW.rec"
+wandb.config.data_file_valid_LP_rec = "/home/ubuntu/pfld_1.0_68_style_LP_VW/pfld_test_data_LP.rec"
+wandb.config.data_file_valid_Style_rec = "/home/ubuntu/pfld_1.0_68_style_LP_VW/pfld_test_data_style.rec"
+wandb.config.data_file_valid_VW_rec = "/home/ubuntu/pfld_1.0_68_style_LP_VW/pfld_test_data_VW.rec"
 
 
 
@@ -77,6 +77,7 @@ def str2bool(v):
 
 def to_tensor(img, labels):
     img = torch.FloatTensor(img)
+    img = img/255.0
     labels = torch.FloatTensor(labels)
     return img, labels
 
@@ -116,8 +117,8 @@ def train(train_iter, plfd_backbone, auxiliarynet, criterion, optimizer,
         wandb.log({f"metric/weighted_loss_{datasetname}": weighted_loss.detach().cpu().numpy()})
         logger.info(f"On {datasetname} dataset. Epoch:{epoch}. Lr:{optimizer.param_groups[0]['lr']} Batch {i} / {num_batch} batches. Loss: {loss.item()}. Weighted_loss:{ weighted_loss.detach().cpu().numpy()}")
         
-        if i>=2:
-            break
+        # if i>=2:
+            # break
 
     return weighted_loss, loss
 
@@ -176,7 +177,7 @@ def validate(valid_iter, plfd_backbone, auxiliarynet, criterion, datasetname):
             losses.append(loss.cpu().numpy())
             nme_batch = compute_nme(landmark, landmark_gt)
             nme_list += list(nme_batch) # Concat list
-            break
+            # break
     
     wandb.log({f"metric/valid_nme_loss_{datasetname}": np.mean(nme_list)})
     print(f"===> Evaluate on {datasetname}")
@@ -284,7 +285,7 @@ def main(args):
 
 
     ### Train and valid iters
-    image_size=112
+    image_size=192
     batch_size=args.train_batchsize
 
     train_iter_LP = mx.io.ImageRecordIter(
@@ -405,6 +406,13 @@ def main(args):
 
         #scheduler.step(val_loss)
         scheduler.step()
+
+        train_iter_LP.reset()
+        train_iter_Style.reset()
+        train_iter_VW.reset()
+        valid_iter_LP.reset()
+        valid_iter_Style.reset()
+        valid_iter_VW.reset()
       
     writer.close()
 
@@ -452,7 +460,7 @@ def parse_args():
         default='./data/test_data/list.txt',
         type=str,
         metavar='PATH')
-    parser.add_argument('--train_batchsize', default=2, type=int)
+    parser.add_argument('--train_batchsize', default=64, type=int)
     parser.add_argument('--val_batchsize', default=8, type=int)
     args = parser.parse_args()
     return args

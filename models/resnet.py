@@ -439,14 +439,14 @@ class ResNet68lmks(nn.Module):
         self.fc = nn.Linear(512 * block.expansion, num_classes)
 
 
-        self.conv6 = conv_bn(256, 16, 3,1) # 16x14x14
+        self.conv6 = conv_bn(512, 16, 3,1) # 16x14x14
         self.relu = nn.ReLU(inplace=True)
         self.conv7 = conv_bn(16, 32, 3, 2)  # [32, 7, 7]
-        self.conv8 = nn.Conv2d(32, 128, 7, 1, 0)  # [128, 1, 1]
+        self.conv8 = nn.Conv2d(32, 128, 6, 1, 0)  # [128, 1, 1]
         self.bn8 = nn.BatchNorm2d(128)
 
-        self.avg_pool1 = nn.AvgPool2d(14)
-        self.avg_pool2 = nn.AvgPool2d(7)
+        self.avg_pool1 = nn.AvgPool2d(12)
+        self.avg_pool2 = nn.AvgPool2d(6)
         self.fc_pfld = nn.Linear(176, 68*2)
 
         for m in self.modules():
@@ -502,7 +502,9 @@ class ResNet68lmks(nn.Module):
         share_features = self.layer2(x)  #128x14x14
         # print("Shape layer2: ", share_features.shape)
         x = self.layer3(share_features)
-        # print("Shape layer3: ", x.shape)
+        x = self.layer4(x)
+
+        print("Shape layer4: ", x.shape)
 
         x = self.conv6(x) # 16x14x14
 
