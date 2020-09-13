@@ -36,13 +36,13 @@ wandb.config.pfld_backbone = "resnet101PFLD68lmks" # It is customized for PFLD
 # wandb.config.ghostnet_width = 1
 # wandb.config.ghostnet_with_pretrained_weight_image_net = True
 wandb.config.using_wingloss = False
-wandb.config.data_file_train_LP_rec = "/home/ubuntu/pfld_1.0_68_style_LP_VW/pfld_train_data_LP.rec"
-wandb.config.data_file_train_Style_rec = "/home/ubuntu/pfld_1.0_68_style_LP_VW/pfld_train_data_style.rec"
-wandb.config.data_file_train_VW_rec = "/home/ubuntu/pfld_1.0_68_style_LP_VW/pfld_train_data_VW.rec"
+wandb.config.data_file_train_LP_rec = "/home/vuthede/data/pfld_1.0_68_style_LP_VW/pfld_train_data_LP.rec"
+wandb.config.data_file_train_Style_rec = "/home/vuthede/data/pfld_1.0_68_style_LP_VW/pfld_train_data_style.rec"
+wandb.config.data_file_train_VW_rec = "/home/vuthede/data/pfld_1.0_68_style_LP_VW/pfld_train_data_VW.rec"
 
-wandb.config.data_file_valid_LP_rec = "/home/ubuntu/pfld_1.0_68_style_LP_VW/pfld_test_data_LP.rec"
-wandb.config.data_file_valid_Style_rec = "/home/ubuntu/pfld_1.0_68_style_LP_VW/pfld_test_data_style.rec"
-wandb.config.data_file_valid_VW_rec = "/home/ubuntu/pfld_1.0_68_style_LP_VW/pfld_test_data_VW.rec"
+wandb.config.data_file_valid_LP_rec = "/home/vuthede/data/pfld_1.0_68_style_LP_VW/pfld_test_data_LP.rec"
+wandb.config.data_file_valid_Style_rec = "/home/vuthede/data/pfld_1.0_68_style_LP_VW/pfld_test_data_style.rec"
+wandb.config.data_file_valid_VW_rec = "/home/vuthede/data/pfld_1.0_68_style_LP_VW/pfld_test_data_VW.rec"
 
 
 
@@ -117,8 +117,8 @@ def train(train_iter, plfd_backbone, auxiliarynet, criterion, optimizer,
         wandb.log({f"metric/weighted_loss_{datasetname}": weighted_loss.detach().cpu().numpy()})
         logger.info(f"On {datasetname} dataset. Epoch:{epoch}. Lr:{optimizer.param_groups[0]['lr']} Batch {i} / {num_batch} batches. Loss: {loss.item()}. Weighted_loss:{ weighted_loss.detach().cpu().numpy()}")
         
-        # if i>=2:
-            # break
+        if i>=2:
+            break
 
     return weighted_loss, loss
 
@@ -177,7 +177,7 @@ def validate(valid_iter, plfd_backbone, auxiliarynet, criterion, datasetname):
             losses.append(loss.cpu().numpy())
             nme_batch = compute_nme(landmark, landmark_gt)
             nme_list += list(nme_batch) # Concat list
-            # break
+            break
     
     wandb.log({f"metric/valid_nme_loss_{datasetname}": np.mean(nme_list)})
     print(f"===> Evaluate on {datasetname}")
@@ -187,6 +187,30 @@ def validate(valid_iter, plfd_backbone, auxiliarynet, criterion, datasetname):
     
     return np.mean(losses)
 
+
+def load_model_from_checkpoint(pfld, auxilary, optimizer, scheduler, checkpointfile, device='cuda'):
+    checkpoint = torch.load(checkpointfile)
+    # Load model
+    pfld.load_state_dict(checkpoint['plfd_backbone'])
+    auxilary.load_state_dict(checkpoint['auxiliarynet'])
+
+    # Load optimizer
+    optimizer.load_state_dict(checkpoint['optimizer'])
+    for state in optimizer.state.values():
+        for k, v in state.items():
+            if isinstance(v, torch.Tensor):
+                if device=='cuda':
+                    state[k] = v.cuda()
+
+    # Loafd scheduler
+    if scheduler != None:
+        scheduler = checkpoint['scheduler']
+
+
+    logger.info(f"Load weights from checkpoint {checkpointfile} into plfd and auxiliary")
+
+
+    return pfld, auxilary, optimizer, scheduler
 
 
 def main(args):
@@ -260,14 +284,9 @@ def main(args):
             logger.info(f"Using MobileNet2. Load weights from pretrained into some last layers and freeze them ")
 
 
-    # Load checkpoints
-    if args.resume != '':
-        checkpoint = torch.load(args.resume)
-        plfd_backbone.load_state_dict(checkpoint['plfd_backbone'])
-        auxiliarynet.load_state_dict(checkpoint['auxiliarynet'])
-        logger.info(f"Load weights {args.resume} into plfd and auxiliary")
-
+    # Criterion
     criterion = PFLDLossNoWeight()
+
     optimizer = torch.optim.Adam(
         [{
             'params': plfd_backbone.parameters()
@@ -276,8 +295,15 @@ def main(args):
         }],
         lr=args.base_lr,
         weight_decay=args.weight_decay)
+
     #scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', patience=args.lr_patience,factor=0.5, verbose=True)
     scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=200 ,gamma=0.1)
+
+    # Load checkpoints
+    if args.resume != '':
+        plfd_backbone, auxiliarynet, optimizer, scheduler = load_model_from_checkpoint(plfd_backbone, auxiliarynet, optimizer, scheduler, args.resume)
+
+    
 
 
     # step 3: data
@@ -370,21 +396,22 @@ def main(args):
 
 
         # Train different dataset
-        weighted_loss_LP, loss_LP = train(train_iter_LP, plfd_backbone, auxiliarynet,
-                                      criterion, optimizer, epoch, "LP")
+       
         weighted_loss_style, loss_style = train(train_iter_Style, plfd_backbone, auxiliarynet,
                                       criterion, optimizer, epoch, "Style")
         
         weighted_loss_VW, loss_VW = train(train_iter_VW, plfd_backbone, auxiliarynet,
                                       criterion, optimizer, epoch, "VW")
+        
+        weighted_loss_LP, loss_LP = train(train_iter_LP, plfd_backbone, auxiliarynet,
+                                      criterion, optimizer, epoch, "LP")
 
 
         # filename = os.path.join(
         #     str(args.snapshot), "checkpoint_epoch_" + str(epoch) + '.pth.tar')
         
 
-        val_loss_LP = validate(valid_iter_LP, plfd_backbone, auxiliarynet,
-                            criterion, "LP")
+     
         
         val_loss_Style = validate(valid_iter_Style, plfd_backbone, auxiliarynet,
                             criterion, "Style")
@@ -392,12 +419,16 @@ def main(args):
         val_loss_VW = validate(valid_iter_VW, plfd_backbone, auxiliarynet,
                             criterion, "VW")
 
-        
+        val_loss_LP = validate(valid_iter_LP, plfd_backbone, auxiliarynet,
+                            criterion, "LP")
+
         filename = f'{str(args.snapshot)}/checkpoint_epoch_{epoch}_lossLP_{val_loss_LP:.3f}_lossstyle_{val_loss_Style:.3f}_lossvw_{val_loss_VW:.3f}.pth.tar'
 
         save_checkpoint({
             'epoch': epoch,
             'plfd_backbone': plfd_backbone.state_dict(),
+            'optimizer': optimizer.state_dict(),
+            'scheduler': scheduler,
             'auxiliarynet': auxiliarynet.state_dict()
         }, filename)
         
@@ -460,7 +491,7 @@ def parse_args():
         default='./data/test_data/list.txt',
         type=str,
         metavar='PATH')
-    parser.add_argument('--train_batchsize', default=64, type=int)
+    parser.add_argument('--train_batchsize', default=2, type=int)
     parser.add_argument('--val_batchsize', default=8, type=int)
     args = parser.parse_args()
     return args
