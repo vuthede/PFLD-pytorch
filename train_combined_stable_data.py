@@ -25,6 +25,7 @@ from models.pfld import PFLDInference, AuxiliaryNet, CustomizedGhostNet, MobileF
 from models.rexnet import ReXNetV1
 from models.resnet import resnet101PFLD, resnet101BottleNeckPFLD, resnet101PFLD68lmks
 import mxnet as mx
+from torch import nn
 
 
 wandb.init(project="Pratical Facial Landmark Detection Combine Stable Data")
@@ -98,7 +99,7 @@ def train(train_iter, plfd_backbone, auxiliarynet, criterion, optimizer,
         i += 1
         img = img.to(device)
         landmark_gt = landmark_gt.to(device)
-        plfd_backbone = plfd_backbone.to(device)
+        # plfd_backbone = plfd_backbone.to(device)
         # auxiliarynet = auxiliarynet.to(device)
         features, landmarks = plfd_backbone(img)
 
@@ -169,7 +170,7 @@ def validate(valid_iter, plfd_backbone, auxiliarynet, criterion, datasetname):
 
             img = img.to(device)
             landmark_gt = landmark_gt.to(device)
-            plfd_backbone = plfd_backbone.to(device)
+            # plfd_backbone = plfd_backbone.to(device)
             _, landmark = plfd_backbone(img)
 
 
@@ -284,6 +285,10 @@ def main(args):
             logger.info(f"Using MobileNet2. Load weights from pretrained into some last layers and freeze them ")
 
 
+    # Parallel model
+    plfd_backbone = nn.DataParallel(plfd_backbone, devices_id=[0,1]).to(device)
+
+
     # Criterion
     criterion = PFLDLossNoWeight()
 
@@ -297,7 +302,7 @@ def main(args):
         weight_decay=args.weight_decay)
 
     #scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', patience=args.lr_patience,factor=0.5, verbose=True)
-    scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=200 ,gamma=0.1)
+    scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=70 ,gamma=0.7)
 
     # Load checkpoints
     if args.resume != '':
