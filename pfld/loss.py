@@ -5,6 +5,22 @@ import numpy as np
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
+class PFLDEyeGazeLoss(nn.Module):
+    def __init__(self):
+        super(PFLDEyeGazeLoss, self).__init__()
+
+    
+    def forward(self, gt, pred):
+        """
+        \Gt is eyegaze pitch, eyegaze yaw, EAR
+        \Pre the same with gt
+        """
+
+        l2_distant = torch.sum((gt - pred) * (gt - pred), axis=1)
+        l2_distant = torch.mean(l2_distant)
+        return l2_distant
+
+
 class PFLDLoss(nn.Module):
     def __init__(self):
         super(PFLDLoss, self).__init__()

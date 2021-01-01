@@ -1,0 +1,3 @@
+[submodule "GazeML"]
+	path = GazeML
+	url = https://github.com/swook/GazeML
