@@ -18,7 +18,7 @@ import torch.backends.cudnn as cudnn
 from dataset.datasets import WLFWDatasets
 
 from models.pfld import PFLDInference, AuxiliaryNet, CustomizedGhostNet
-from models.resnet import resnet101PFLD, resnet101PFLD106lmks
+from models.resnet import resnet101PFLD, resnet101PFLD106lmks, resnet101PFLD68lmks
 # from mtcnn.detector import MTCNN
 # from mtcnn import MTCNN
 from loss.LSE_loss import LandmarkDetectorAbstract, calculateLSEInOneVideo
@@ -200,6 +200,11 @@ def trans_points(pts, M):
   else:
     return trans_points3d(pts, M)
 
+def to_tensor(img):
+    img = torch.FloatTensor(img)
+    img = img/255.0
+    return img
+
 class  LandmarkDetectorPFLD(LandmarkDetectorAbstract):
     def __init__(self, device, model_path):
         self.mtcnn = mtcnn.MTCNN()
@@ -208,7 +213,9 @@ class  LandmarkDetectorPFLD(LandmarkDetectorAbstract):
         self.retina.prepare(ctx_id=ctx_id)
         self.transform = transforms.Compose([transforms.ToTensor()])
         # self.plfd_backbone = CustomizedGhostNet(width=1, dropout=0.2).to(device)
-        self.plfd_backbone = PFLDInference()
+        # self.plfd_backbone = PFLDInference()
+        self.plfd_backbone = resnet101PFLD68lmks()
+
         # self.plfd_backbone = resnet101PFLD()
         # self.plfd_backbone = resnet101PFLD106lmks()
         checkpoint = torch.load(model_path, map_location=device)
@@ -267,6 +274,7 @@ class  LandmarkDetectorPFLD(LandmarkDetectorAbstract):
 
 
             landmarks = []
+            BOX_SIZE = 192
             if len(box):
                 padding=self.padding
                 x,y,x1,y1 = map(int, box)
@@ -275,18 +283,21 @@ class  LandmarkDetectorPFLD(LandmarkDetectorAbstract):
                 x1 = min(image.shape[1], x1+padding)
                 y1 = min(image.shape[0], y1+padding)
                 face = image[y:y1, x:x1]
-                face = cv2.resize(face, (112, 112))
-                face = self.transform(face)
+                face = cv2.resize(face, (BOX_SIZE, BOX_SIZE))
+                # face = self.transform(face)
+                face = np.transpose(face, (2,0,1))
+                face = to_tensor(face)
                 face = torch.unsqueeze(face, 0)
+
                 _, landmarks = self.plfd_backbone(face)   
                 landmarks = landmarks.cpu().numpy()
                 landmarks = landmarks.reshape(landmarks.shape[0], -1, 2) # landmark 
                 landmarks = np.squeeze(landmarks, 0)
                 # indice68lmk = np.array(list(LMK98_2_68_MAP.keys()))
-                # landmarks = landmarks[indice68lmk] * np.array([112,112])
-                landmarks *= np.array([112,112])
-                landmarks[:,0] = landmarks[:,0] * ((x1-x)/112) + x
-                landmarks[:,1] = landmarks[:,1] * ((y1-y)/112) + y
+                # landmarks = landmarks[indice68lmk] * np.array([BOX_SIZE,BOX_SIZE])
+                landmarks *= np.array([BOX_SIZE,BOX_SIZE])
+                landmarks[:,0] = landmarks[:,0] * ((x1-x)/BOX_SIZE) + x
+                landmarks[:,1] = landmarks[:,1] * ((y1-y)/BOX_SIZE) + y
 
                 landmarks = landmarks.astype(int)
 
@@ -302,7 +313,7 @@ class  LandmarkDetectorPFLD(LandmarkDetectorAbstract):
             out.write(image)
             cv2.imshow("Landmark predict: ", image)
 
-            k = cv2.waitKey(0)
+            k = cv2.waitKey(1)
 
             if k==27:
                 cv2.destroyAllWindows()
@@ -366,7 +377,8 @@ def main():
     # model_path = "/home/vuthede/checkpoints_landmark/mobilenetv2/checkpoint_epoch_969.pth.tar"
     # model_path = "/home/vuthede/checkpoints_landmark/mobilenetv2_correctloss/checkpoint_epoch_230.pth.tar"
     # model_path = "./checkpoint_resnet101/checkpoint_epoch_403.pth.tar"
-    model_path = "./checkpoint_mobilenetv2/checkpoint_epoch_230.pth.tar"
+    # model_path = "./checkpoint_mobilenetv2/checkpoint_epoch_230.pth.tar"
+    model_path = "/home/vuthede/checkpoint_epoch_6_lossLP_0.214_lossstyle_0.073_lossvw_0.056.pth.tar"
     # model_path = "./checkpoints_resnet101_106lmks/checkpoint_epoch_116.pth.tar"
     # model_path = "./checkpoints_resnet101_106lmks/augment/checkpoint_epoch_157.pth.tar"
 
