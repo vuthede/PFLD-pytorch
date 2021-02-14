@@ -465,17 +465,21 @@ class AuxiliaryNet(nn.Module):
 if __name__ == '__main__':
     import time
     import numpy as np
+    from torchsummary import summary
+
     input = torch.randn(1, 3, 112, 112)
     plfd_backbone = PFLDInference(alpha=1)
+    summary(plfd_backbone, (3,112,112))
+
     plfd_backbone.eval()
-#     auxiliarynet = AuxiliaryNet()
+# #     auxiliarynet = AuxiliaryNet()
     times = []
-    for i in range(1000):
+    for i in range(100):
         t1 =  time.time()
         features, landmarks = plfd_backbone(input)
         t2 = time.time()-t1
         times.append(t2)
-        print("Time: ", t2)
+        # print("Time: ", t2)
     
     print("time average: ", np.mean(times))
 #     angle = auxiliarynet(features)

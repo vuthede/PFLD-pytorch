@@ -37,6 +37,8 @@ class UnityEyeDataset(data.Dataset):
         # Declare some parameters
         self.elg_first_layer_stride = 1
 
+        self.EYE_IMAGE_SHAPE = (128, 128)
+
         self.unityeyes = UnityEyes(
                     session,
                     batch_size=10,
@@ -46,7 +48,7 @@ class UnityEyeDataset(data.Dataset):
                     generate_heatmaps=True,
                     shuffle=True,
                     staging=False,
-                    eye_image_shape=(64, 64),
+                    eye_image_shape= self.EYE_IMAGE_SHAPE,
                     heatmaps_scale=1.0 / self.elg_first_layer_stride,
                 )
         
@@ -74,32 +76,55 @@ class UnityEyeDataset(data.Dataset):
         #lmks 0, 4 --> horizaoontal eye
         gaze = data['gaze']
         
-        v = np.linalg.norm(lmks[2]-lmks[6])
+        v1 = np.linalg.norm(lmks[2]-lmks[6])
+        v2 = np.linalg.norm(lmks[1]-lmks[7])
+        v3 = np.linalg.norm(lmks[3]-lmks[5])
+
         h = np.linalg.norm(lmks[4]-lmks[0])
-        ear_ratio = v/h
+        ear_ratio = np.max([v1,v2,v3])/(h)
 
-        return torch.FloatTensor(eye), torch.FloatTensor([gaze[0], gaze[1], ear_ratio])
+        norm_lmks = lmks/np.array(self.EYE_IMAGE_SHAPE)
+
+        return torch.FloatTensor(eye), torch.FloatTensor([gaze[0], gaze[1], ear_ratio]), torch.FloatTensor(norm_lmks[:8].flatten())
 
 
 
-dataseteye = UnityEyeDataset(data_dir='/media/vuthede/7d50b736-6f2d-4348-8cb5-4c1794904e86/home/vuthede/data/UNITYEYE/UnityEyes/imgs')
+# dataseteye = UnityEyeDataset(data_dir='/media/vuthede/7d50b736-6f2d-4348-8cb5-4c1794904e86/home/vuthede/data/UNITYEYE/UnityEyes/imgs')
 
-print(len(dataseteye))
+# print(len(dataseteye))
 
-# eye, (g1, g2, ear) = dataseteye[0]
-# eye = np.transpose(eye, (1,2,0))
-# eye = draw_gaze(eye, (32, 32), [g1, g2])
-# # eye = draw_landmarks(eye, lmks[[0,4, 2, 6]])
-# # print(gaze*180)
+# import numpy as np
 
-# cv2.imshow("Eye", eye)
+# while True:
+#     index = np.random.randint(0, len(dataseteye)-1)
+#     print(index)
+#     eye, (g1, g2, ear), lmks = dataseteye[index]
+#     eye = eye.numpy()
+#     g1 = g1.numpy()
+#     g2 = g2.numpy()
+#     ear = ear.numpy()
+#     lmks = lmks.numpy()
+#     lmks = np.reshape(lmks, (8,2))
+#     # print(f"Min eye: {np.min(eye)}. Max eye :{np.max(eye)}..")
+#     eye += 1.0
+#     eye *= 255.0
+#     eye /= 2.0
+#     eye = (np.transpose(eye, (1,2,0))).astype(np.uint8)
+#     # print(f"Min eye: {np.min(eye)}. Max eye :{np.max(eye)}.")
 
-# k = cv2.waitKey(0)
+#     print("Eye openess: ", ear)
+#     eye = draw_gaze(eye, (32, 32), [g1, g2])
+#     eye = draw_landmarks(eye, lmks*128.0)
+#     # print(gaze*180)
 
-# if k==27:
-    # break
+#     cv2.imshow("Eye", eye)
 
-# cv2.destroyAllWindows()
+#     k = cv2.waitKey(0)
+
+#     if k==27:
+#         break
+
+#     cv2.destroyAllWindows()
 
 
 
@@ -113,6 +138,25 @@ print(len(dataseteye))
 
 
 # print("Len dataset: ", unityeyes.num_entries)
+
+# gpu_options = tf.GPUOptions(allow_growth=True)
+# session = tf.Session(config=tf.ConfigProto(gpu_options=gpu_options))
+
+# # Declare some parameters
+# elg_first_layer_stride = 1
+
+# unityeyes = UnityEyes(
+#             session,
+#             batch_size=10,
+#             data_format='NCHW',
+#             unityeyes_path="/media/vuthede/7d50b736-6f2d-4348-8cb5-4c1794904e86/home/vuthede/data/UNITYEYE/UnityEyes/imgs",
+#             min_after_dequeue=1000,
+#             generate_heatmaps=True,
+#             shuffle=True,
+#             staging=False,
+#             eye_image_shape=(224, 224),
+#             heatmaps_scale=1.0 / elg_first_layer_stride,
+#         )
 
 # for entry in unityeyes.entry_generator():
 #     data = unityeyes.preprocess_entry(entry)
@@ -128,7 +172,7 @@ print(len(dataseteye))
 
 #     eye = np.transpose(eye, (1,2,0))
 #     eye = draw_gaze(eye, (30, 18), gaze)
-#     eye = draw_landmarks(eye, lmks[[0,4, 2, 6]])
+#     eye = draw_landmarks(eye, lmks[:8])
 #     print(gaze*180)
 
 #     cv2.imshow("Eye", eye)
