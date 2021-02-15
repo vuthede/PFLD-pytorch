@@ -32,7 +32,7 @@ class PFLDLandmarkDetector(LandmarkDetectorAbstract):
     
 
     detector = dlib.get_frontal_face_detector()
-    predictor = dlib.shape_predictor("/home/vuthede/VinAI/mydeformation/model.dat")
+    predictor = dlib.shape_predictor("./model.dat")
 
     def get_rect_and_keypoints(self, image):
         gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)

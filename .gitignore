@@ -129,3 +129,19 @@ WFLW
 train_data
 test_data
 
+
+# video
+video
+
+# checkpoints
+checkpoint
+checkpoints_landmark
+
+# wandb
+wandb
+
+# Data WFLW
+WFLW2
+
+pfld.onnx
+auxiliary.onnx
